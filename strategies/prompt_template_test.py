@@ -1,4 +1,9 @@
+import logging
 from langchain.prompts import PromptTemplate
+
+# Initialize logger
+logger = logging.getLogger(__name__)
+logger.info("Trading advisor prompt template module loaded")
 
 TRADING_ADVISOR_PROMPT = PromptTemplate(
     input_variables=["signal_data"],

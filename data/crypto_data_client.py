@@ -1,4 +1,6 @@
 import os
+import logging
+import time
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import asyncio
@@ -19,6 +21,11 @@ class CryptoMarketDataClient:
     def __init__(self):
         load_dotenv()
         self.mountain_tz = pytz.timezone('America/Denver')  # Mountain Time
+        
+        # Initialize logger
+        self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
+        self.logger.info("Crypto market data client initialized")
+        self.logger.debug(f"Using timezone: {self.mountain_tz}")
         
     def _convert_to_mountain_time(self, timestamp: int) -> str:
         """
@@ -86,6 +93,7 @@ class CryptoMarketDataClient:
             dict: Market data for the requested cryptocurrency pair
         """
         coin_id, vs_currency = self._normalize_symbol(symbol)
+        self.logger.info(f"Fetching real-time price for {symbol} (coin_id: {coin_id}, vs_currency: {vs_currency})")
         
         endpoint = "/simple/price"
         params = {
@@ -97,15 +105,20 @@ class CryptoMarketDataClient:
             'include_last_updated_at': 'true'
         }
         
+        start_time = time.time()
         try:
+            self.logger.debug(f"Making API request to {self.BASE_URL}{endpoint} with params: {params}")
             response = requests.get(f"{self.BASE_URL}{endpoint}", params=params, timeout=30)
             response.raise_for_status()
             data = response.json()
             
+            response_time = time.time() - start_time
+            self.logger.info(f"Real-time price fetched for {symbol} in {response_time:.2f}s: ${data[coin_id][vs_currency]:,.2f}")
+            
             # Get the raw timestamp
             last_updated_timestamp = data[coin_id].get('last_updated_at')
             
-            return {
+            result = {
                 'symbol': symbol,
                 'price': data[coin_id][vs_currency],
                 'market_cap': data[coin_id].get(f'{vs_currency}_market_cap'),
@@ -114,8 +127,13 @@ class CryptoMarketDataClient:
                 'last_updated': last_updated_timestamp,
                 'last_updated_mt': self._convert_to_mountain_time(last_updated_timestamp)
             }
+            
+            self.logger.debug(f"Full response data: {result}")
+            return result
+            
         except Exception as e:
-            print(f"Error fetching real-time data for {symbol}: {e}")
+            response_time = time.time() - start_time
+            self.logger.error(f"Error fetching real-time data for {symbol} after {response_time:.2f}s: {e}")
             return None
 
     async def get_realtime_websocket(self, symbols: list, callback: callable):
@@ -146,6 +164,7 @@ class CryptoMarketDataClient:
             dict: Historical market data
         """
         coin_id, vs_currency = self._normalize_symbol(symbol)
+        self.logger.info(f"Fetching {days} days of historical data for {symbol}")
         
         endpoint = f"/coins/{coin_id}/market_chart"
         params = {
@@ -153,12 +172,22 @@ class CryptoMarketDataClient:
             'days': days
         }
         
+        start_time = time.time()
         try:
+            self.logger.debug(f"Making historical data request to {self.BASE_URL}{endpoint} with params: {params}")
             response = requests.get(f"{self.BASE_URL}{endpoint}", params=params, timeout=30)
             response.raise_for_status()
-            return response.json()
+            data = response.json()
+            
+            response_time = time.time() - start_time
+            data_points = len(data.get('prices', []))
+            self.logger.info(f"Historical data fetched for {symbol} in {response_time:.2f}s: {data_points} data points")
+            
+            return data
+            
         except Exception as e:
-            print(f"Error fetching historical data for {symbol}: {e}")
+            response_time = time.time() - start_time
+            self.logger.error(f"Error fetching historical data for {symbol} after {response_time:.2f}s: {e}")
             return None
 
     def format_historical_summary(self, historical_data: Dict, symbol: str) -> str:
@@ -208,7 +237,7 @@ class CryptoMarketDataClient:
         
         return summary.strip()
 
-    def get_historical_bars(self, symbol: str, hours: int = 240) -> 'pd.DataFrame':
+    def get_historical_bars(self, symbol: str, hours: int = 240):
         """
         Get historical OHLCV data formatted for technical analysis and LSTM model.
         

@@ -2,6 +2,8 @@ import os
 from dotenv import load_dotenv
 from datetime import datetime
 import pytz
+import logging
+import logging.handlers
 from typing import Dict, Any, Optional
 
 load_dotenv()
@@ -55,8 +57,63 @@ class AppConfig:
         self.log_level = os.getenv("LOG_LEVEL", "INFO")
         self.log_file = os.getenv("LOG_FILE", "logs/trading.log")
         
+        # Ensure logs directory exists
+        os.makedirs(os.path.dirname(self.log_file), exist_ok=True)
+        
         # Validate required keys
         self._validate_config()
+        
+        # Setup logging
+        self._setup_logging()
+    
+    def _setup_logging(self) -> None:
+        """Setup logging configuration for the application."""
+        # Convert string log level to logging constant
+        log_levels = {
+            'DEBUG': logging.DEBUG,
+            'INFO': logging.INFO,
+            'WARNING': logging.WARNING,
+            'ERROR': logging.ERROR,
+            'CRITICAL': logging.CRITICAL
+        }
+        
+        level = log_levels.get(self.log_level.upper(), logging.INFO)
+        
+        # Create logger
+        logger = logging.getLogger()
+        logger.setLevel(level)
+        
+        # Clear any existing handlers
+        logger.handlers.clear()
+        
+        # Create formatter
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+        
+        # Console handler
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(level)
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
+        
+        # File handler with rotation
+        file_handler = logging.handlers.RotatingFileHandler(
+            self.log_file,
+            maxBytes=10*1024*1024,  # 10MB
+            backupCount=5
+        )
+        file_handler.setLevel(level)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+        
+        # Log the initialization
+        logging.info(f"Logging initialized - Level: {self.log_level}, File: {self.log_file}")
+    
+    def get_logger(self, name: str = None) -> logging.Logger:
+        """Get a logger instance with the specified name."""
+        return logging.getLogger(name)
     
     def _validate_config(self) -> None:
         """Validate that required configuration values are present."""

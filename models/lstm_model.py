@@ -1,4 +1,6 @@
 import os
+import logging
+import time
 import numpy as np
 import pandas as pd
 import ta
@@ -30,12 +32,18 @@ class SignalGenerator:
         self.ticker = ticker
         self.lookback = lookback
         
+        # Initialize logger
+        self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
+        self.logger.info(f"Initializing LSTM Signal Generator for {ticker}")
+        
         # Enhanced feature set
         self.feature_columns = [
             'close', 'RSI', 'MACD', 'BB_Middle', 'ATR', 'OBV',
             'VWAP', 'Log_Returns', 'Realized_Vol', 'Volume_Delta',
             'ADX', 'Stoch_RSI', 'EMA_20', 'EMA_50'
         ]
+        
+        self.logger.debug(f"Using {len(self.feature_columns)} features: {self.feature_columns}")
         
         self.scalers = {
             'price': RobustScaler(),
@@ -48,6 +56,8 @@ class SignalGenerator:
         base_dir = os.path.dirname(os.path.abspath(__file__))
         self.model_dir = os.path.abspath(model_dir or os.path.join(base_dir, 'data'))
         os.makedirs(self.model_dir, exist_ok=True)
+        
+        self.logger.info(f"Model directory: {self.model_dir}")
         
         self.model_name = model_name or f'{self.ticker.replace("/", "_").lower()}_lstm_v2.keras'
         self.model_path = os.path.join(self.model_dir, self.model_name)
@@ -70,12 +80,13 @@ class SignalGenerator:
             print(f"Retrieved data with shape: {bars.shape}")
             return self._calculate_features(bars)
         except Exception as e:
-            print(f"[Error] Failed to get historical data: {str(e)}")
+            self.logger.error(f"Failed to get historical data: {str(e)}")
             return pd.DataFrame()
 
     def _calculate_features(self, df):
         """Enhanced feature engineering with more technical indicators"""
-        print("Calculating features...")
+        self.logger.info("Calculating technical features...")
+        start_time = time.time()
         df = df.copy()
         
         def safe_div(a, b, fill_val=0):

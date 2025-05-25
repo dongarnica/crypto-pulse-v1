@@ -6,12 +6,35 @@ Tests position retrieval, portfolio summaries, and position analysis.
 
 import os
 import sys
+import time
+import logging
 
 # Add parent directory to path so we can import from the project root
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config.config import AppConfig
 from exchanges.alpaca_client import AlpacaCryptoTrading
+
+def print_test_summary(results, duration):
+    """Print test summary."""
+    print(f"\n{'='*60}")
+    print("📊 TEST SUMMARY")
+    print(f"{'='*60}")
+    print(f"Total Tests: {results['total_tests']}")
+    print(f"✅ Passed: {results['passed']}")
+    print(f"❌ Failed: {results['failed']}")
+    print(f"⚠️ Skipped: {results['skipped']}")
+    print(f"Success Rate: {(results['passed']/results['total_tests']*100):.1f}%")
+    print(f"Duration: {duration:.2f}s")
+    print(f"\nTest Details:")
+    for detail in results['details']:
+        print(f"  • {detail}")
+    print(f"{'='*60}")
+    
+    if results['failed'] == 0:
+        print("🎉 ALL TESTS PASSED!")
+    else:
+        print(f"⚠️ {results['failed']} TEST(S) FAILED")
 
 def format_currency(amount):
     """Format currency values consistently."""
@@ -30,21 +53,57 @@ def format_percentage(value):
 def test_alpaca_positions():
     """Test Alpaca positions functionality."""
     
+    test_results = {
+        'total_tests': 5,
+        'passed': 0,
+        'failed': 0,
+        'skipped': 0,
+        'details': []
+    }
+    
+    # Initialize configuration (this also sets up logging)
+    config = AppConfig()
+    logger = config.get_logger(__name__)
+    
+    logger.info("Starting Alpaca positions test")
     print("=== Alpaca Positions Test ===\n")
     
+    start_time = time.time()
+    
+    # Test 1: Validate credentials
+    print("🔐 TEST 1: Validating Alpaca Credentials")
+    print("-" * 40)
+    
     # Initialize configuration
-    config = AppConfig()
     alpaca_config = config.get_alpaca_config()
     
     # Validate credentials
     if not alpaca_config['api_key'] or not alpaca_config['api_secret']:
-        print("❌ Missing Alpaca API credentials!")
+        error_msg = "Missing Alpaca API credentials!"
+        logger.error(error_msg)
+        print(f"❌ FAILED: {error_msg}")
         print("Please set ALPACA_API_KEY and ALPACA_SECRET_KEY in your .env file")
-        return
+        test_results['failed'] += 1
+        test_results['details'].append(f"Credentials validation: FAILED - {error_msg}")
+        print_test_summary(test_results, time.time() - start_time)
+        return test_results
     
+    logger.info("Alpaca credentials found")
+    print("✅ PASSED: Alpaca credentials found")
+    print(f"📊 Using base URL: {alpaca_config['base_url']}")
+    logger.info(f"Using Alpaca base URL: {alpaca_config['base_url']}")
+    test_results['passed'] += 1
+    test_results['details'].append("Credentials validation: PASSED")
+    print()
+    
+    logger.info("Alpaca credentials found")
     print("✅ Alpaca credentials found")
     print(f"📊 Using base URL: {alpaca_config['base_url']}")
+    logger.info(f"Using Alpaca base URL: {alpaca_config['base_url']}")
     print()
+    # Test 2: Initialize client
+    print("🏦 TEST 2: Initializing Alpaca Client")
+    print("-" * 40)
     
     # Initialize client
     try:
@@ -53,47 +112,82 @@ def test_alpaca_positions():
             api_secret=alpaca_config['api_secret'],
             base_url=alpaca_config['base_url']
         )
-        print("✅ Alpaca client initialized")
+        print("✅ PASSED: Alpaca client initialized")
+        logger.info("Alpaca client initialized successfully")
+        test_results['passed'] += 1
+        test_results['details'].append("Client initialization: PASSED")
     except Exception as e:
-        print(f"❌ Failed to initialize Alpaca client: {str(e)}")
-        return
+        error_msg = f"Failed to initialize Alpaca client: {str(e)}"
+        logger.error(error_msg)
+        print(f"❌ FAILED: {error_msg}")
+        test_results['failed'] += 1
+        test_results['details'].append(f"Client initialization: FAILED - {error_msg}")
+        print_test_summary(test_results, time.time() - start_time)
+        return test_results
+    print()
     
-    # Test 1: Account Information
-    print("\n" + "="*50)
-    print("📋 ACCOUNT INFORMATION")
-    print("="*50)
+    # Test 3: Account Information
+    print("💰 TEST 3: Account Information Retrieval")
+    print("-" * 40)
+    
+    logger.info("Testing account information retrieval")
     
     try:
         account = client.get_account()
         
-        print(f"Account ID: {account.get('id', 'N/A')}")
-        print(f"Account Status: {account.get('status', 'N/A')}")
-        print(f"Cash Available: {format_currency(account.get('cash', 'N/A'))}")
-        print(f"Buying Power: {format_currency(account.get('buying_power', 'N/A'))}")
-        print(f"Portfolio Value: {format_currency(account.get('portfolio_value', 'N/A'))}")
+        account_info = {
+            'id': account.get('id', 'N/A'),
+            'status': account.get('status', 'N/A'),
+            'cash': account.get('cash', 'N/A'),
+            'buying_power': account.get('buying_power', 'N/A'),
+            'portfolio_value': account.get('portfolio_value', 'N/A')
+        }
+        
+        print("✅ PASSED: Account information retrieved")
+        print(f"Account ID: {account_info['id']}")
+        print(f"Account Status: {account_info['status']}")
+        print(f"Cash Available: {format_currency(account_info['cash'])}")
+        print(f"Buying Power: {format_currency(account_info['buying_power'])}")
+        print(f"Portfolio Value: {format_currency(account_info['portfolio_value'])}")
         print(f"Day Trade Count: {account.get('daytrade_count', 'N/A')}")
         print(f"Pattern Day Trader: {account.get('pattern_day_trader', 'N/A')}")
         
+        logger.info(f"Account retrieved - ID: {account_info['id']}, Status: {account_info['status']}")
+        logger.info(f"Portfolio value: {account_info['portfolio_value']}, Cash: {account_info['cash']}")
+        
+        test_results['passed'] += 1
+        test_results['details'].append(f"Account info: PASSED - Portfolio: {format_currency(account_info['portfolio_value'])}")
+        
     except Exception as e:
-        print(f"❌ Failed to get account information: {str(e)}")
-        return
+        error_msg = f"Failed to get account information: {str(e)}"
+        logger.error(error_msg)
+        print(f"❌ FAILED: {error_msg}")
+        test_results['failed'] += 1
+        test_results['details'].append(f"Account info: FAILED - {error_msg}")
+    print()
     
-    # Test 2: Positions Information
-    print("\n" + "="*50)
-    print("📈 POSITIONS ANALYSIS")
-    print("="*50)
+    # Test 4: Positions Information
+    print("📈 TEST 4: Positions Analysis")
+    print("-" * 40)
+    
+    logger.info("Testing positions retrieval")
     
     try:
         positions = client.list_positions()
         
         if not positions or len(positions) == 0:
-            print("📭 No open positions found")
+            logger.warning("No open positions found")
+            print("⚠️ SKIPPED: No open positions found")
             print("\n💡 Tips for testing positions:")
             print("   • Place a small test order first")
             print("   • Check if you're using paper trading vs live")
             print("   • Verify your account has sufficient buying power")
+            test_results['skipped'] += 1
+            test_results['details'].append("Positions analysis: SKIPPED - No positions found")
         else:
-            print(f"📊 Found {len(positions)} open position(s):\n")
+            position_count = len(positions)
+            logger.info(f"Retrieved {position_count} open positions")
+            print(f"✅ PASSED: Found {position_count} open position(s)")
             
             total_market_value = 0
             total_unrealized_pl = 0
@@ -119,7 +213,10 @@ def test_alpaca_positions():
                     unrealized_pl = float(unrealized_pl)
                     unrealized_plpc = float(unrealized_plpc) * 100 if unrealized_plpc else 0
                     cost_basis = float(cost_basis)
-                except ValueError:
+                    
+                    logger.debug(f"Position {symbol}: {qty} units, market value: {market_value}, P&L: {unrealized_pl}")
+                except ValueError as ve:
+                    logger.warning(f"Could not parse numeric values for {symbol}: {str(ve)}")
                     print(f"⚠️  Warning: Could not parse numeric values for {symbol}")
                     continue
                 
@@ -138,6 +235,7 @@ def test_alpaca_positions():
                 total_cost_basis += cost_basis
             
             # Portfolio Summary
+            logger.info(f"Portfolio totals - Market value: {total_market_value}, P&L: {total_unrealized_pl}")
             print("="*30)
             print("📊 PORTFOLIO SUMMARY")
             print("="*30)
@@ -149,10 +247,19 @@ def test_alpaca_positions():
             if total_cost_basis > 0:
                 total_return_pct = (total_unrealized_pl / total_cost_basis) * 100
                 print(f"Total Return: {format_percentage(total_return_pct)}")
+                logger.info(f"Total return: {total_return_pct:.2f}%")
+            
+            test_results['passed'] += 1
+            test_results['details'].append(f"Positions analysis: PASSED - {position_count} positions, Total P&L: {format_currency(total_unrealized_pl)}")
             
     except Exception as e:
-        print(f"❌ Failed to get positions: {str(e)}")
+        error_msg = f"Failed to get positions: {str(e)}"
+        logger.error(f"{error_msg} - Error type: {type(e).__name__}")
+        print(f"❌ FAILED: {error_msg}")
         print(f"Error details: {type(e).__name__}")
+        test_results['failed'] += 1
+        test_results['details'].append(f"Positions analysis: FAILED - {error_msg}")
+    print()
     
     # Test 3: Portfolio Summary Analysis
     print("\n" + "="*50)

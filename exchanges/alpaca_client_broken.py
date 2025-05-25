@@ -8,8 +8,7 @@ class AlpacaCryptoTrading:
     A Python module for trading cryptocurrencies using Alpaca's API.
     Supports market orders with separate stop loss and take profit orders.
     """
-    
-    def __init__(self, api_key: str, api_secret: str, base_url: str = "https://paper-api.alpaca.markets"):
+      def __init__(self, api_key: str, api_secret: str, base_url: str = "https://paper-api.alpaca.markets"):
         """
         Initialize the Alpaca Crypto Trading client.
         
@@ -26,8 +25,7 @@ class AlpacaCryptoTrading:
             'APCA-API-KEY-ID': self.api_key,
             'APCA-API-SECRET-KEY': self.api_secret
         })
-        
-        # Initialize logger
+          # Initialize logger
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
         self.logger.info(f"Alpaca client initialized with base URL: {base_url}")
         
@@ -59,12 +57,10 @@ class AlpacaCryptoTrading:
         except Exception as e:
             self.logger.error(f"Unexpected error in request: {method} {endpoint} - {str(e)}")
             raise
-    
-    def get_account(self) -> Dict:
+      def get_account(self) -> Dict:
         """
         Get the Alpaca account information.
-        
-        Returns:
+          Returns:
             Dictionary containing account details
         """
         self.logger.info("Retrieving account information")
@@ -108,6 +104,27 @@ class AlpacaCryptoTrading:
                 return []
         except Exception as e:
             self.logger.error(f"Error fetching positions: {str(e)}")
+            print(f"Error fetching positions: {str(e)}")
+            return []
+        
+        Returns:
+            List of position dictionaries
+        """
+        try:
+            positions_response = self._send_request('GET', '/v2/positions')
+            # If the response is already a list, return it
+            if isinstance(positions_response, list):
+                return positions_response
+            # If it's a dict with a 'positions' key, return that
+            elif isinstance(positions_response, dict) and 'positions' in positions_response:
+                return positions_response['positions']
+            # If it's some other dict structure, try to convert it
+            elif isinstance(positions_response, dict):
+                return [positions_response]
+            else:
+                return []
+        except Exception as e:
+            print(f"Error fetching positions: {str(e)}")
             return []
     
     def get_position(self, symbol: str) -> Dict:
@@ -120,7 +137,6 @@ class AlpacaCryptoTrading:
         Returns:
             Dictionary containing position details
         """
-        self.logger.debug(f"Retrieving position for {symbol}")
         return self._send_request('GET', f'/v2/positions/{symbol}')
     
     def get_assets(self) -> Dict:
@@ -130,7 +146,6 @@ class AlpacaCryptoTrading:
         Returns:
             Dictionary containing tradable assets
         """
-        self.logger.debug("Retrieving tradable assets")
         return self._send_request('GET', '/v2/assets')
     
     def get_asset(self, symbol: str) -> Dict:
@@ -143,7 +158,6 @@ class AlpacaCryptoTrading:
         Returns:
             Dictionary containing asset details
         """
-        self.logger.debug(f"Retrieving asset information for {symbol}")
         return self._send_request('GET', f'/v2/assets/{symbol}')
     
     def get_last_trade(self, symbol: str) -> Dict:
@@ -156,7 +170,6 @@ class AlpacaCryptoTrading:
         Returns:
             Dictionary containing last trade details
         """
-        self.logger.debug(f"Retrieving last trade for {symbol}")
         return self._send_request('GET', f'/v1/last/crypto/{symbol}')
     
     def get_last_quote(self, symbol: str) -> Dict:
@@ -169,12 +182,18 @@ class AlpacaCryptoTrading:
         Returns:
             Dictionary containing last quote details
         """
-        self.logger.debug(f"Retrieving last quote for {symbol}")
         return self._send_request('GET', f'/v1/last_quote/crypto/{symbol}')
     
-    def place_order(self, symbol: str, qty: float, side: str, type: str = 'market',
-                   time_in_force: str = 'gtc', limit_price: Optional[float] = None,
-                   stop_price: Optional[float] = None) -> Dict:
+    def place_order(
+        self,
+        symbol: str,
+        qty: float,
+        side: str,
+        type: str = 'market',
+        time_in_force: str = 'gtc',
+        limit_price: Optional[float] = None,
+        stop_price: Optional[float] = None
+    ) -> Dict:
         """
         Place a new order.
         
@@ -190,22 +209,20 @@ class AlpacaCryptoTrading:
         Returns:
             Dictionary containing order details
         """
-        order_data = {
+        data = {
             'symbol': symbol,
-            'qty': str(qty),
+            'qty': qty,
             'side': side,
             'type': type,
-            'time_in_force': time_in_force
+            'time_in_force': time_in_force,
         }
         
         if limit_price is not None:
-            order_data['limit_price'] = str(limit_price)
-        
+            data['limit_price'] = str(limit_price)
         if stop_price is not None:
-            order_data['stop_price'] = str(stop_price)
-        
-        self.logger.info(f"Placing {type} order: {side} {qty} {symbol}")
-        return self._send_request('POST', '/v2/orders', data=order_data)
+            data['stop_price'] = str(stop_price)
+            
+        return self._send_request('POST', '/v2/orders', data=data)
     
     def get_order(self, order_id: str) -> Dict:
         """
@@ -217,7 +234,6 @@ class AlpacaCryptoTrading:
         Returns:
             Dictionary containing order details
         """
-        self.logger.debug(f"Retrieving order {order_id}")
         return self._send_request('GET', f'/v2/orders/{order_id}')
     
     def cancel_order(self, order_id: str) -> Dict:
@@ -230,10 +246,9 @@ class AlpacaCryptoTrading:
         Returns:
             Empty dictionary if successful
         """
-        self.logger.info(f"Cancelling order {order_id}")
         return self._send_request('DELETE', f'/v2/orders/{order_id}')
     
-    def list_orders(self, status: str = 'open') -> Dict:
+    def get_orders(self, status: Optional[str] = None) -> Dict:
         """
         Get all orders.
         
@@ -243,13 +258,21 @@ class AlpacaCryptoTrading:
         Returns:
             Dictionary containing orders
         """
-        params = {'status': status}
-        self.logger.debug(f"Retrieving orders with status: {status}")
+        params = {}
+        if status is not None:
+            params['status'] = status
         return self._send_request('GET', '/v2/orders', params=params)
     
-    def trade_with_limits(self, symbol: str, qty: float, side: str,
-                         stop_loss: Optional[float] = None, take_profit: Optional[float] = None,
-                         wait_for_fill: bool = False, wait_timeout: int = 30) -> Dict:
+    def trade_with_limits(
+        self,
+        symbol: str,
+        qty: float,
+        side: str,
+        stop_loss: Optional[float] = None,
+        take_profit: Optional[float] = None,
+        wait_for_fill: bool = True,
+        wait_timeout: int = 30
+    ) -> Dict:
         """
         Execute a trade with separate stop loss and take profit orders.
         This avoids using bracket orders by creating the orders separately.
@@ -271,9 +294,7 @@ class AlpacaCryptoTrading:
             
         if stop_loss is None and take_profit is None:
             raise ValueError("At least one of stop_loss or take_profit must be specified")
-        
-        self.logger.info(f"Executing trade with limits: {side} {qty} {symbol}")
-        
+            
         # Place the main market order
         main_order = self.place_order(
             symbol=symbol,
@@ -304,7 +325,6 @@ class AlpacaCryptoTrading:
         
         # Place stop loss order if specified
         if stop_loss is not None:
-            self.logger.info(f"Placing stop loss order at {stop_loss}")
             stop_order = self.place_order(
                 symbol=symbol,
                 qty=qty,
@@ -317,7 +337,6 @@ class AlpacaCryptoTrading:
         
         # Place take profit order if specified
         if take_profit is not None:
-            self.logger.info(f"Placing take profit order at {take_profit}")
             take_profit_order = self.place_order(
                 symbol=symbol,
                 qty=qty,
@@ -327,7 +346,7 @@ class AlpacaCryptoTrading:
                 time_in_force='gtc'
             )
             result['take_profit_order'] = take_profit_order
-        
+            
         return result
     
     def cancel_all_orders(self) -> Dict:
@@ -337,7 +356,6 @@ class AlpacaCryptoTrading:
         Returns:
             Empty dictionary if successful
         """
-        self.logger.info("Cancelling all open orders")
         return self._send_request('DELETE', '/v2/orders')
     
     def get_portfolio_summary(self) -> Dict:
@@ -347,22 +365,18 @@ class AlpacaCryptoTrading:
         Returns:
             Dictionary containing portfolio summary with analysis
         """
-        self.logger.info("Generating portfolio summary")
         try:
-            # Get account information
+            # Get account info
             account = self.get_account()
-            
-            # Get positions
             positions = self.list_positions()
             
-            # Initialize summary structure
+            # Initialize summary
             summary = {
                 'account': {
                     'cash': float(account.get('cash', 0)),
                     'buying_power': float(account.get('buying_power', 0)),
                     'portfolio_value': float(account.get('portfolio_value', 0)),
-                    'status': account.get('status', 'N/A'),
-                    'id': account.get('id', 'N/A')
+                    'status': account.get('status', 'Unknown')
                 },
                 'positions': {
                     'count': len(positions) if positions else 0,
@@ -428,15 +442,13 @@ class AlpacaCryptoTrading:
                 if summary['positions']['total_cost_basis'] > 0:
                     summary['performance']['total_return_pct'] = (
                         summary['positions']['total_unrealized_pl'] / 
-                        summary['positions']['total_cost_basis'] * 100
-                    )
+                        summary['positions']['total_cost_basis']
+                    ) * 100
             
-            self.logger.debug(f"Portfolio summary generated for {summary['positions']['count']} positions")
             return summary
             
         except Exception as e:
-            self.logger.error(f"Failed to generate portfolio summary: {str(e)}")
-            return {'error': f"Failed to generate portfolio summary: {str(e)}"}
+            return {'error': f"Failed to get portfolio summary: {str(e)}"}
     
     def analyze_position_risk(self, symbol: str) -> Dict:
         """
@@ -448,16 +460,15 @@ class AlpacaCryptoTrading:
         Returns:
             Dictionary containing risk analysis
         """
-        self.logger.debug(f"Analyzing risk for position: {symbol}")
         try:
-            # Get position data
             position = self.get_position(symbol)
+            if not position:
+                return {'error': f'No position found for {symbol}'}
             
-            # Extract relevant data
+            current_price = float(position.get('current_price', 0))
+            avg_entry_price = float(position.get('avg_entry_price', 0))
             market_value = float(position.get('market_value', 0))
             unrealized_pl = float(position.get('unrealized_pl', 0))
-            avg_entry_price = float(position.get('avg_entry_price', 0))
-            current_price = float(position.get('current_price', 0))
             
             # Calculate basic risk metrics
             price_change_pct = ((current_price - avg_entry_price) / avg_entry_price * 100) if avg_entry_price > 0 else 0
@@ -469,7 +480,7 @@ class AlpacaCryptoTrading:
             elif abs(price_change_pct) > 10:
                 risk_level = 'Medium'
             
-            analysis_result = {
+            return {
                 'symbol': symbol,
                 'current_price': current_price,
                 'entry_price': avg_entry_price,
@@ -484,9 +495,5 @@ class AlpacaCryptoTrading:
                 }
             }
             
-            self.logger.debug(f"Risk analysis completed for {symbol}: {risk_level}")
-            return analysis_result
-            
         except Exception as e:
-            self.logger.error(f"Failed to analyze position risk for {symbol}: {str(e)}")
             return {'error': f"Failed to analyze position risk for {symbol}: {str(e)}"}

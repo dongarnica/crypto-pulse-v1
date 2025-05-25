@@ -1,5 +1,11 @@
 import pytest
+import sys
+import os
 from unittest.mock import Mock, patch
+
+# Add the parent directory to the Python path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from exchanges.alpaca_client import AlpacaCryptoTrading
 
 
@@ -107,15 +113,15 @@ class TestAlpacaCryptoTrading:
         mock_request.assert_called_once()
 
     @patch('exchanges.alpaca_client.requests.Session.request')
-    def test_get_orders(self, mock_request, alpaca_client, mock_response):
-        """Test get_orders method."""
-        mock_request.return_value.json.return_value = [mock_response["order"]]
+    def test_get_order(self, mock_request, alpaca_client, mock_response):
+        """Test get_order method."""
+        mock_request.return_value.json.return_value = mock_response["order"]
         mock_request.return_value.raise_for_status.return_value = None
         
-        orders = alpaca_client.get_orders(status="open")
+        order = alpaca_client.get_order(order_id="order123")
         
-        assert len(orders) == 1
-        assert orders[0]["id"] == "order123"
+        assert order["id"] == "order123"
+        assert order["symbol"] == "BTCUSD"
         mock_request.assert_called_once()
 
     @patch('exchanges.alpaca_client.requests.Session.request')

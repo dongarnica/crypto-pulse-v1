@@ -8,6 +8,7 @@ Tests position retrieval, portfolio summaries, risk analysis, and account inform
 import os
 import sys
 import traceback
+import pytest
 
 # Add current directory to Python path
 sys.path.insert(0, os.getcwd())
@@ -38,38 +39,20 @@ def print_subsection(title, char="─", width=40):
     print(f"{title}")
     print(f"{char * width}")
 
-def test_basic_setup():
-    """Test basic setup and configuration."""
-    print_section_header("🔧 BASIC SETUP & CONFIGURATION")
-    
+@pytest.fixture
+def alpaca_client():
+    """Create an AlpacaCryptoTrading client for testing."""
     try:
-        # Test 1: Import config
-        print("1. Testing config import...")
         from config.config import AppConfig
         config = AppConfig()
-        print(f"   ✅ Config loaded for ticker: {config.ticker_short}")
-        
-        # Test 2: Check credentials
-        print("2. Checking credentials...")
         alpaca_config = config.get_alpaca_config()
+        
         api_key = alpaca_config.get('api_key', '')
         api_secret = alpaca_config.get('api_secret', '')
         
-        print(f"   API Key: {'✅ Set' if api_key else '❌ Missing'}")
-        print(f"   API Secret: {'✅ Set' if api_secret else '❌ Missing'}")
-        print(f"   Base URL: {alpaca_config.get('base_url', 'N/A')}")
-        
         if not api_key or not api_secret:
-            print("   ❌ Cannot proceed without credentials")
-            print("\n💡 Setup Instructions:")
-            print("   1. Create a .env file in the project root")
-            print("   2. Add your API keys:")
-            print("      ALPACA_API_KEY=your_key_here")
-            print("      ALPACA_SECRET_KEY=your_secret_here")
-            return None, None
+            pytest.skip("API credentials not available")
         
-        # Test 3: Import and initialize Alpaca client
-        print("3. Testing Alpaca client import...")
         from exchanges.alpaca_client import AlpacaCryptoTrading
         
         client = AlpacaCryptoTrading(
@@ -77,27 +60,17 @@ def test_basic_setup():
             api_secret=api_secret,
             base_url=alpaca_config['base_url']
         )
-        print("   ✅ Alpaca client initialized")
-        
-        return client, config
-        
-    except ImportError as e:
-        print(f"❌ Import error: {str(e)}")
-        print("Check that all required modules are available")
-        return None, None
+        return client
         
     except Exception as e:
-        print(f"❌ Unexpected error: {str(e)}")
-        print("Full traceback:")
-        traceback.print_exc()
-        return None, None
+        pytest.skip(f"Could not initialize Alpaca client: {e}")
 
-def test_account_access(client):
+def test_account_access(alpaca_client):
     """Test account access and display basic account information."""
     print_section_header("📋 ACCOUNT INFORMATION")
     
     try:
-        account = client.get_account()
+        account = alpaca_client.get_account()
         
         print(f"Account ID: {account.get('id', 'N/A')}")
         print(f"Account Status: {account.get('status', 'N/A')}")
@@ -107,18 +80,19 @@ def test_account_access(client):
         print(f"Day Trade Count: {account.get('daytrade_count', 'N/A')}")
         print(f"Pattern Day Trader: {account.get('pattern_day_trader', 'N/A')}")
         
-        return True
+        assert account is not None
+        assert 'id' in account
         
     except Exception as e:
         print(f"❌ Failed to get account information: {str(e)[:200]}...")
-        return False
+        pytest.fail(f"Account access failed: {e}")
 
-def test_positions_basic(client):
+def test_positions_basic(alpaca_client):
     """Test basic positions retrieval and display."""
     print_section_header("📈 BASIC POSITIONS ANALYSIS")
     
     try:
-        positions = client.list_positions()
+        positions = alpaca_client.list_positions()
         print(f"✅ Positions retrieved - Count: {len(positions) if positions else 0}")
         
         if not positions or len(positions) == 0:
@@ -127,7 +101,7 @@ def test_positions_basic(client):
             print("   • Place a small test order first")
             print("   • Check if you're using paper trading vs live")
             print("   • Verify your account has sufficient buying power")
-            return []
+            pytest.skip("No positions available for testing")
         
         print(f"📊 Found {len(positions)} open position(s):")
         
@@ -146,22 +120,24 @@ def test_positions_basic(client):
         if len(positions) > 5:
             print(f"   ... and {len(positions) - 5} more positions")
         
-        return positions
+        assert len(positions) > 0
         
     except Exception as e:
         print(f"❌ Positions access failed: {str(e)[:200]}...")
+        pytest.fail(f"Positions retrieval failed: {e}")
+        print(f"❌ Positions access failed: {str(e)[:200]}...")
         return []
 
-def test_positions_detailed(client):
+def test_positions_detailed(alpaca_client):
     """Test detailed positions analysis with calculations."""
     print_section_header("📊 DETAILED POSITIONS ANALYSIS")
     
     try:
-        positions = client.list_positions()
+        positions = alpaca_client.list_positions()
         
         if not positions or len(positions) == 0:
             print("📭 No positions for detailed analysis")
-            return
+            pytest.skip("No positions available for detailed analysis")
         
         print(f"📊 Analyzing {len(positions)} position(s) in detail:\n")
         
@@ -218,19 +194,23 @@ def test_positions_detailed(client):
             total_return_pct = (total_unrealized_pl / total_cost_basis) * 100
             print(f"Total Return: {format_percentage(total_return_pct)}")
         
+        assert len(positions) > 0
+        assert total_market_value >= 0
+        
     except Exception as e:
         print(f"❌ Failed detailed positions analysis: {str(e)}")
+        pytest.fail(f"Detailed positions analysis failed: {e}")
 
-def test_portfolio_summary(client):
+def test_portfolio_summary(alpaca_client):
     """Test comprehensive portfolio summary analysis."""
     print_section_header("🎯 PORTFOLIO SUMMARY ANALYSIS")
     
     try:
-        portfolio_summary = client.get_portfolio_summary()
+        portfolio_summary = alpaca_client.get_portfolio_summary()
         
         if 'error' in portfolio_summary:
             print(f"❌ Portfolio analysis failed: {portfolio_summary['error']}")
-            return
+            pytest.fail(f"Portfolio summary failed: {portfolio_summary['error']}")
         
         # Account summary
         account = portfolio_summary['account']
@@ -248,6 +228,7 @@ def test_portfolio_summary(client):
         print(f"Total Cost Basis: {format_currency(positions_data['total_cost_basis'])}")
         print(f"Total Unrealized P&L: {format_currency(positions_data['total_unrealized_pl'])}")
         
+        # Performance summary
         # Performance summary
         performance = portfolio_summary['performance']
         print_subsection("🎯 PERFORMANCE SUMMARY")
@@ -272,25 +253,29 @@ def test_portfolio_summary(client):
                 print(f"  Return: {format_percentage(pos_data['return_pct'])}")
                 print(f"  P&L: {format_currency(pos_data['unrealized_pl'])}")
                 print(f"  Quantity: {pos_data['qty']:,.6f}")
-    
+        
+        assert 'account' in portfolio_summary
+        assert 'positions' in portfolio_summary
+        
     except Exception as e:
         print(f"❌ Portfolio summary failed: {str(e)}")
+        pytest.fail(f"Portfolio summary failed: {e}")
 
-def test_risk_analysis(client):
+def test_risk_analysis(alpaca_client):
     """Test individual position risk analysis."""
     print_section_header("⚠️  POSITION RISK ANALYSIS")
     
     try:
-        positions = client.list_positions()
+        positions = alpaca_client.list_positions()
         if not positions or len(positions) == 0:
             print("📭 No positions available for risk analysis")
-            return
+            pytest.skip("No positions available for risk analysis")
         
         print(f"🔍 Analyzing risk for {min(3, len(positions))} position(s):")
         
         for pos in positions[:3]:  # Analyze first 3 positions
             symbol = pos.get('symbol', 'N/A')
-            risk_analysis = client.analyze_position_risk(symbol)
+            risk_analysis = alpaca_client.analyze_position_risk(symbol)
             
             if 'error' in risk_analysis:
                 print(f"\n❌ {symbol}: {risk_analysis['error']}")
@@ -308,11 +293,14 @@ def test_risk_analysis(client):
             print(f"     Profitable: {'✅' if analysis['is_profitable'] else '❌'}")
             print(f"     High Risk: {'⚠️ Yes' if analysis['is_high_risk'] else '✅ No'}")
             print(f"     Needs Attention: {'🚨 Yes' if analysis['needs_attention'] else '✅ No'}")
-    
+        
+        assert len(positions) > 0
+        
     except Exception as e:
         print(f"❌ Risk analysis failed: {str(e)}")
+        pytest.fail(f"Risk analysis failed: {e}")
 
-def test_individual_positions(client):
+def test_individual_positions(alpaca_client):
     """Test individual position lookup by symbol."""
     print_section_header("🔍 INDIVIDUAL POSITION LOOKUP")
     
@@ -323,7 +311,7 @@ def test_individual_positions(client):
     found_positions = 0
     for symbol in test_symbols:
         try:
-            position = client.get_position(symbol)
+            position = alpaca_client.get_position(symbol)
             if position:
                 print(f"✅ {symbol}: Found position")
                 print(f"   Quantity: {position.get('qty', 'N/A')}")
@@ -336,9 +324,10 @@ def test_individual_positions(client):
             print(f"📭 {symbol}: No position (API response: {str(e)[:50]}...)")
     
     print(f"\nSummary: Found {found_positions} out of {len(test_symbols)} tested symbols")
+    # This test doesn't fail if no positions are found, as that's valid
 
 def run_comprehensive_test():
-    """Run the complete comprehensive test suite."""
+    """Run the complete comprehensive test suite (for manual execution)."""
     print("=" * 80)
     print("🚀 COMPREHENSIVE ALPACA POSITIONS TEST SUITE")
     print("=" * 80)
@@ -350,46 +339,51 @@ def run_comprehensive_test():
     print("• Individual position risk analysis")
     print("• Position lookup by symbol")
     
-    # Phase 1: Basic Setup
-    client, config = test_basic_setup()
-    if not client:
-        print("\n❌ Cannot continue without proper setup. Please fix configuration issues.")
-        return
-    
-    # Phase 2: Account Access Test
-    account_ok = test_account_access(client)
-    if not account_ok:
-        print("\n⚠️  Account access failed, but continuing with other tests...")
-    
-    # Phase 3: Basic Positions Test
-    positions = test_positions_basic(client)
-    
-    # Phase 4: Detailed Analysis (only if positions exist)
-    if positions:
-        test_positions_detailed(client)
-        test_portfolio_summary(client)
-        test_risk_analysis(client)
-    else:
-        print("\n📭 Skipping detailed analysis - no positions found")
-        print("💡 To test with positions, place some small test trades first")
-    
-    # Phase 5: Individual Position Lookup
-    test_individual_positions(client)
-    
-    # Final Summary
-    print_section_header("✅ TEST SUITE COMPLETE")
-    print("🎉 Comprehensive Alpaca positions test completed!")
-    print("\n📚 Additional Resources:")
-    print("• See ALPACA_POSITIONS_DOCUMENTATION.md for detailed API documentation")
-    print("• Run python3 exchanges/test_alpaca_client.py for trading-focused tests")
-    print("• Check README.md for more testing commands and examples")
-    
-    if not positions:
-        print("\n💡 Next Steps (No Positions Found):")
-        print("1. Verify you're using the correct environment (paper vs live)")
-        print("2. Check account funding and buying power")
-        print("3. Place a small test trade to create positions for testing")
-        print("4. Run this test again to see full portfolio analysis features")
+    try:
+        # Create client using the same logic as the fixture
+        from config.config import AppConfig
+        config = AppConfig()
+        alpaca_config = config.get_alpaca_config()
+        
+        api_key = alpaca_config.get('api_key', '')
+        api_secret = alpaca_config.get('api_secret', '')
+        
+        if not api_key or not api_secret:
+            print("\n❌ Cannot continue without proper setup. Please fix configuration issues.")
+            return
+        
+        from exchanges.alpaca_client import AlpacaCryptoTrading
+        
+        client = AlpacaCryptoTrading(
+            api_key=api_key,
+            api_secret=api_secret,
+            base_url=alpaca_config['base_url']
+        )
+        
+        # Run the test functions
+        print("\n🔧 Testing account access...")
+        test_account_access(client)
+        
+        print("\n📈 Testing basic positions...")
+        try:
+            test_positions_basic(client)
+            test_positions_detailed(client)
+            test_portfolio_summary(client)
+            test_risk_analysis(client)
+        except Exception as e:
+            if "skip" in str(e).lower():
+                print("Skipping position tests - no positions available")
+        
+        print("\n🔍 Testing individual positions...")
+        test_individual_positions(client)
+        
+        print_section_header("✅ TEST SUITE COMPLETE")
+        print("🎉 Comprehensive Alpaca positions test completed!")
+        
+    except Exception as e:
+        print(f"\n❌ Unexpected error in test suite: {str(e)}")
+        print("Full traceback:")
+        traceback.print_exc()
 
 if __name__ == "__main__":
     try:

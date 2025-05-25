@@ -1,4 +1,5 @@
 # backtest.py: Standalone backtesting module for LSTM-based crypto signal generator (for use with lstm_model.py)
+import logging
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -18,28 +19,44 @@ class Backtester:
         self.hours = hours
         self.initial_balance = initial_balance
         self.fee = fee
+        
+        # Initialize logger
+        self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
+        self.logger.info(f"Backtester initialized: {hours}h, balance=${initial_balance:,.2f}, fee={fee*100:.3f}%")
 
     def run(self, verbose=True):
+        self.logger.info(f"Starting backtest for {self.signal_generator.ticker}")
+        
         # Fetch historical data and features
+        self.logger.info(f"Fetching {self.hours} hours of historical data...")
         raw_data = self.signal_generator.get_historical_data(hours=self.hours)
+        
         if raw_data.empty or len(raw_data) < self.signal_generator.lookback + 2:
+            self.logger.error("Not enough data for backtest")
             print("[Backtester] Not enough data for backtest.")
             return None
+            
+        self.logger.info(f"Retrieved {len(raw_data)} data points for backtesting")
 
         # Prepare features for LSTM
+        self.logger.debug("Preparing features for LSTM model...")
         scaled_close = self.signal_generator.scalers['price'].fit_transform(raw_data[['close']])
         scaled_features = self.signal_generator.scalers['features'].fit_transform(
             raw_data[self.signal_generator.feature_columns[1:]]
         )
         combined = np.concatenate([scaled_close, scaled_features], axis=1)
         X, y = self.signal_generator._create_sequences(combined)
+        
+        self.logger.info(f"Created {len(X)} sequences for prediction")
 
         # Load model (do not retrain)
         input_shape = (X.shape[1], X.shape[2])
         if self.signal_generator.model is None:
+            self.logger.info("Loading LSTM model...")
             self.signal_generator.model = self.signal_generator.get_or_create_model(input_shape)
 
         # Predict for all available windows
+        self.logger.info("Generating predictions...")
         preds = self.signal_generator.model.predict(X, batch_size=32)
         preds = preds.reshape(-1, 1)
         preds = np.nan_to_num(preds, nan=0, posinf=0, neginf=0)

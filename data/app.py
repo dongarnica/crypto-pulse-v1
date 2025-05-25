@@ -1,25 +1,35 @@
 import asyncio
+import logging
 from data.crypto_data_client import CryptoMarketDataClient
 
 def main():
+    # Initialize logging
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    
+    logger.info("Starting CryptoMarketDataClient Demo")
     print("--- CryptoMarketDataClient Demo ---")
     client = CryptoMarketDataClient()
 
     # 1. Fetch historical bars for BTC/USD
+    logger.info("Fetching historical bars for BTC/USD")
     print("\n[1] Fetching historical bars for BTC/USD (1 day, 1-min bars)...")
     bars = client.get_historical_bars('BTC/USD', days=1)
     print(bars.head())
 
     # 2. Fetch CoinGecko data for BTC and ETH
+    logger.info("Fetching CoinGecko data for BTC and ETH")
     print("\n[2] Fetching CoinGecko data for BTC and ETH...")
     data = CryptoMarketDataClient.get_crypto_data()
     if data:
+        logger.info(f"Successfully retrieved data for {len(data)} coins")
         for coin, info in data.items():
             print(f"\n{coin.capitalize()}:")
             print(f"  Current Price: ${info.get('usd', 'N/A'):,}")
             print(f"  24h Change: {info.get('usd_24h_change', 'N/A')}%")
             print(f"  Market Cap: ${info.get('usd_market_cap', 'N/A'):,}")
     else:
+        logger.error("No data returned from CoinGecko API")
         print("[ERROR] No data returned from CoinGecko API.")
 
     # 3. (Optional) Subscribe to real-time trades for BTC-USD (Coinbase)
