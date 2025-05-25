@@ -1,0 +1,13 @@
+# Add your Python dependencies here
+alpaca-py
+python-dotenv
+langchain
+langchain-openai
+openai
+scikit-learn
+tensorflow
+pandas
+numpy
+ta
+pytest
+pytz
