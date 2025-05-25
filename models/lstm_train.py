@@ -1,4 +1,4 @@
-# app_lstm.py: CLI entry point for LSTM-based advanced signal generator
+# lstm_train.py: CLI entry point for LSTM-based advanced signal generator
 import sys
 import os
 import argparse
@@ -28,4 +28,4 @@ if __name__ == "__main__":
     main()
 
     # Example command to run this script with DOT/USD ticker:
-    # python3 /workspaces/crypto-refactor/models/app_lstm.py --ticker ETH/USD --hours 720 --lookback 168 --retrain-threshold 12
+    # python3 /workspaces/crypto-refactor/models/lstm_train.py --ticker ETH/USD --hours 720 --lookback 168 --retrain-threshold 12

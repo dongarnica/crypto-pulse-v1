@@ -6,15 +6,15 @@
 ```bash
 # Basic signal generation for BTC/USD
 # Trains an LSTM model and generates trading signals using 240 hours (10 days) of historical data.
-python3 models/app_lstm.py --ticker BTC/USD --hours 240
+python3 models/lstm_train.py --ticker BTC/USD --hours 240
 
 # Advanced configuration with custom parameters
 # Uses 720 hours (30 days) of data for ETH/USD, sets LSTM lookback window to 168 time steps (1 week if hourly), and retrains if the model is older than 12 hours.
-python3 models/app_lstm.py --ticker ETH/USD --hours 720 --lookback 168 --retrain-threshold 12
+python3 models/lstm_train.py --ticker ETH/USD --hours 720 --lookback 168 --retrain-threshold 12
 
 # Generate signals for other cryptocurrencies
 # Example: Generates signals for AAVE/USD using 480 hours (20 days) of data and a lookback window of 60 time steps.
-python3 models/app_lstm.py --ticker AAVE/USD --hours 480 --lookback 60
+python3 models/lstm_train.py --ticker AAVE/USD --hours 480 --lookback 60
 ```
 
 ### Backtesting
@@ -28,20 +28,6 @@ python3 models/app_backtester.py --ticker ETH/USD --hours 1440 --initial-balance
 # Long-term backtest (90 days) with higher initial balance
 python3 models/app_backtester.py --ticker BTC/USD --hours 2160 --initial-balance 100000
 ```
-
-### Trading Scripts
-```bash
-# Run single execution for a ticker
-python3 run_trading.py --ticker BTC/USD --once
-
-# Run continuous monitoring (demo mode)
-python3 run_trading.py --ticker ETH/USD --demo
-
-# Multi-ticker execution (sequential)
-python3 run_multi_ticker.py --mode sequential
-
-# Multi-ticker execution (parallel)
-python3 run_multi_ticker.py --mode parallel --max-workers 4
 ```
 
 ### Data Testing
@@ -109,7 +95,7 @@ python3 test_mountain_time.py
 
 ## Command Line Parameters
 
-### LSTM Signal Generator (`app_lstm.py`)
+### LSTM Signal Generator (`lstm_train.py`)
 - `--ticker`: Trading pair (default: BTC/USD) - Supports any crypto pair from tickers.txt
 - `--hours`: Number of hours of historical data (default: 240) - More data = better training
 - `--model`: Custom model name (optional) - Allows model versioning

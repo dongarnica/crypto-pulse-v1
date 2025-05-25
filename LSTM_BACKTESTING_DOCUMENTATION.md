@@ -199,9 +199,9 @@ The `Backtester` class provides comprehensive strategy evaluation capabilities f
 
 ### CLI Applications
 
-#### 1. LSTM Signal Generator (`app_lstm.py`)
+#### 1. LSTM Signal Generator (`lstm_train.py`)
 ```bash
-python3 models/app_lstm.py --ticker BTC/USD --hours 240 --lookback 60
+python3 models/lstm_train.py --ticker BTC/USD --hours 240 --lookback 60
 ```
 
 **Parameters:**
