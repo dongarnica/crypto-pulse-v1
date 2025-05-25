@@ -171,8 +171,8 @@ def test_module_initialization_logging():
         
         # Test LSTM model initialization only  
         try:
-            from models.lstm_model import SignalGenerator
-            signal_generator = SignalGenerator(ticker='BTC/USD')
+            from models.lstm_model_v2 import AggressiveCryptoSignalGenerator
+            signal_generator = AggressiveCryptoSignalGenerator(ticker='BTC/USD')
             logger.info("SignalGenerator initialized successfully")
             results['details'].append("✓ SignalGenerator initialization logging working")
             results['passed'] += 1

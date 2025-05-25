@@ -1,4 +1,4 @@
-# backtest.py: Standalone backtesting module for LSTM-based crypto signal generator (for use with lstm_model.py)
+# backtest.py: Standalone backtesting module for LSTM-based crypto signal generator (for use with lstm_model_v2.py)
 import logging
 import numpy as np
 import pandas as pd
@@ -8,9 +8,9 @@ class Backtester:
     """
     Backtests a signal generator or model on historical data and outputs performance metrics.
     """
-    def __init__(self, signal_generator, hours=720, initial_balance=100000, fee=0.001):
+    def __init__(self, signal_generator=None, hours=720, initial_balance=100000, fee=0.001):
         """
-        signal_generator: instance of SignalGenerator (from lstm_model.py)
+        signal_generator: instance of AggressiveCryptoSignalGenerator (from lstm_model_v2.py)
         hours: number of hours to backtest (default: 30 days)
         initial_balance: starting capital for simulation
         fee: trading fee per trade (fraction, e.g., 0.001 = 0.1%)

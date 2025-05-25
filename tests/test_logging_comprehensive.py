@@ -16,7 +16,7 @@ from utils.logging_utils import setup_logging, get_logger, log_trade_signal, log
 from config.config import AppConfig
 from llm.llm_client import LLMClient
 from data.crypto_data_client import CryptoMarketDataClient
-from models.lstm_model import SignalGenerator
+from models.lstm_model_v2 import AggressiveCryptoSignalGenerator
 from exchanges.alpaca_client import AlpacaCryptoTrading
 
 
@@ -157,7 +157,7 @@ def test_lstm_model_logging():
         logger.info("Testing LSTM model logging...")
         
         # Test SignalGenerator initialization only (no data fetching)
-        signal_generator = SignalGenerator(ticker='BTC/USD')
+        signal_generator = AggressiveCryptoSignalGenerator(ticker='BTC/USD')
         logger.info("SignalGenerator initialized successfully")
         
         # Test logging without making actual API calls

@@ -1,0 +1,26 @@
+[
+  {
+    "date": "2025-05-25",
+    "timestamp": "2025-05-25T22:55:39.601945",
+    "portfolio_value": 93430.48381539623,
+    "unrealized_pnl": 7366.967112833646,
+    "total_positions": 10,
+    "avg_return_pct": 8.559918761272616,
+    "risk_distribution": {
+      "low": 2,
+      "medium": 1,
+      "high": 2,
+      "critical": 5
+    },
+    "top_performer": {
+      "symbol": "DOT/USD",
+      "return_pct": 3776.7760026511323,
+      "unrealized_pnl": 8204.084685930755
+    },
+    "worst_performer": {
+      "symbol": "SUSHI/USD",
+      "return_pct": -5.2706060200917815,
+      "unrealized_pnl": -12.671178803382917
+    }
+  }
+]

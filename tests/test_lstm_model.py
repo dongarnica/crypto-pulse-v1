@@ -3,7 +3,7 @@ import pytest
 import numpy as np
 import pandas as pd
 from datetime import datetime
-from models.lstm_model import SignalGenerator
+from models.lstm_model_v2 import AggressiveCryptoSignalGenerator
 
 
 
@@ -51,7 +51,7 @@ def dummy_scaler():
 @pytest.fixture
 def signal_generator(tmp_path):
     # Use a temporary directory for model files
-    return SignalGenerator(ticker='BTC/USD', model_dir=tmp_path, lookback=60)
+    return AggressiveCryptoSignalGenerator(ticker='BTC/USD', model_dir=tmp_path, lookback=60)
 
 def test_generate_trading_signals_long(signal_generator, dummy_df, dummy_predictions, dummy_scaler):
     # Set up DataFrame so that long condition is met for the last row

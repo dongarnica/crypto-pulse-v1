@@ -1,0 +1,24 @@
+{
+  "timestamp": "2025-05-25T22:55:37.332096",
+  "sync_results": {
+    "alpaca_count": 10,
+    "local_count": 0,
+    "synced": 0,
+    "discrepancies": [],
+    "new_positions": [
+      "AAVE/USD",
+      "BTC/USD",
+      "DOGE/USD",
+      "DOT/USD",
+      "ETH/USD",
+      "LINK/USD",
+      "LTC/USD",
+      "SUSHI/USD",
+      "XRP/USD",
+      "YFI/USD"
+    ],
+    "closed_positions": []
+  },
+  "recommendations": {
+    "urgent": [
+      

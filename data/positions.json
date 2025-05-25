@@ -1,0 +1,122 @@
+{
+  "AAVE/USD": {
+    "entry_price": 255.393194522,
+    "quantity": 118.43242188,
+    "current_price": 264.381,
+    "market_value": 31311.282129,
+    "unrealized_pl": 1064.44757,
+    "side": "long",
+    "entry_time": "2025-05-25T22:55:37.597728",
+    "source": "alpaca_sync",
+    "last_updated": "2025-05-25T22:55:37.597745",
+    "symbol": "AAVE/USD"
+  },
+  "BTC/USD": {
+    "entry_price": 111215.699939349,
+    "quantity": 0.018949858,
+    "current_price": 108879.66,
+    "market_value": 2063.254096,
+    "unrealized_pl": -44.267625,
+    "side": "long",
+    "entry_time": "2025-05-25T22:55:37.609767",
+    "source": "alpaca_sync",
+    "last_updated": "2025-05-25T22:55:37.609790",
+    "symbol": "BTC/USD"
+  },
+  "DOGE/USD": {
+    "entry_price": 0.242359074,
+    "quantity": 23277.8321605,
+    "current_price": 0.219,
+    "market_value": 5097.845243,
+    "unrealized_pl": -543.748604,
+    "side": "long",
+    "entry_time": "2025-05-25T22:55:37.630444",
+    "source": "alpaca_sync",
+    "last_updated": "2025-05-25T22:55:37.630463",
+    "symbol": "DOGE/USD"
+  },
+  "DOT/USD": {
+    "entry_price": 0.11478868,
+    "quantity": 1892.3865163,
+    "current_price": 4.4501,
+    "market_value": 8421.309236,
+    "unrealized_pl": 8204.084686,
+    "side": "long",
+    "entry_time": "2025-05-25T22:55:37.644777",
+    "source": "alpaca_sync",
+    "last_updated": "2025-05-25T22:55:37.644801",
+    "symbol": "DOT/USD"
+  },
+  "ETH/USD": {
+    "entry_price": 2601.329651764,
+    "quantity": 13.467140248,
+    "current_price": 2550.2,
+    "market_value": 34343.90106,
+    "unrealized_pl": -688.570192,
+    "side": "long",
+    "entry_time": "2025-05-25T22:55:37.660999",
+    "source": "alpaca_sync",
+    "last_updated": "2025-05-25T22:55:37.661031",
+    "symbol": "ETH/USD"
+  },
+  "LINK/USD": {
+    "entry_price": 16.1503,
+    "quantity": 15.342747,
+    "current_price": 15.109,
+    "market_value": 231.813564,
+    "unrealized_pl": -15.976403,
+    "side": "long",
+    "entry_time": "2025-05-25T22:55:37.674202",
+    "source": "alpaca_sync",
+    "last_updated": "2025-05-25T22:55:37.674249",
+    "symbol": "LINK/USD"
+  },
+  "LTC/USD": {
+    "entry_price": 99.435859113,
+    "quantity": 8.95794225,
+    "current_price": 95.47,
+    "market_value": 855.214747,
+    "unrealized_pl": -35.525937,
+    "side": "long",
+    "entry_time": "2025-05-25T22:55:37.688215",
+    "source": "alpaca_sync",
+    "last_updated": "2025-05-25T22:55:37.688268",
+    "symbol": "LTC/USD"
+  },
+  "SUSHI/USD": {
+    "entry_price": 0.750031189,
+    "quantity": 320.536243,
+    "current_price": 0.7105,
+    "market_value": 227.741001,
+    "unrealized_pl": -12.671178,
+    "side": "long",
+    "entry_time": "2025-05-25T22:55:37.702354",
+    "source": "alpaca_sync",
+    "last_updated": "2025-05-25T22:55:37.702388",
+    "symbol": "SUSHI/USD"
+  },
+  "XRP/USD": {
+    "entry_price": 2.307203883,
+    "quantity": 102.65212459,
+    "current_price": 2.32937,
+    "market_value": 239.114779,
+    "unrealized_pl": 2.275399,
+    "side": "long",
+    "entry_time": "2025-05-25T22:55:37.716355",
+    "source": "alpaca_sync",
+    "last_updated": "2025-05-25T22:55:37.716439",
+    "symbol": "XRP/USD"
+  },
+  "YFI/USD": {
+    "entry_price": 5787.421689116,
+    "quantity": 1.935592249,
+    "current_price": 5496.513,
+    "market_value": 10639.007959,
+    "unrealized_pl": -563.080604,
+    "side": "long",
+    "entry_time": "2025-05-25T22:55:37.731118",
+    "source": "alpaca_sync",
+    "last_updated": "2025-05-25T22:55:37.731141",
+    "symbol": "YFI/USD"
+  }
+}
