@@ -1,0 +1,23 @@
+[2025-05-25 16:21:39] === Alpaca Positions Verification Test ===
+[2025-05-25 16:21:39] Testing config import...
+[2025-05-25 16:21:40] ✅ Config loaded for ticker: BTC
+[2025-05-25 16:21:40] API Key configured: True
+[2025-05-25 16:21:40] API Secret configured: True
+[2025-05-25 16:21:40] Base URL: https://paper-api.alpaca.markets
+[2025-05-25 16:21:40] Testing Alpaca client import...
+[2025-05-25 16:21:41] ✅ Alpaca client initialized successfully
+[2025-05-25 16:21:41] Testing available methods...
+[2025-05-25 16:21:41] ✅ Method get_account available
+[2025-05-25 16:21:41] ✅ Method list_positions available
+[2025-05-25 16:21:41] ✅ Method get_portfolio_summary available
+[2025-05-25 16:21:41] ✅ Method analyze_position_risk available
+[2025-05-25 16:21:41] Testing basic API connectivity...
+[2025-05-25 16:21:41] ✅ Account accessed - Status: ACTIVE, Cash: $6043.68
+[2025-05-25 16:21:41] Testing positions retrieval...
+[2025-05-25 16:21:41] ✅ Positions retrieved - Count: 10
+[2025-05-25 16:21:41] Position 1: AAVEUSD - 114.68887584 units - $30451.846246
+[2025-05-25 16:21:41] Position 2: BTCUSD - 0.018949858 units - $2025.03697
+[2025-05-25 16:21:41] Testing portfolio summary...
+[2025-05-25 16:21:41] ✅ Portfolio summary - Value: $98136.06, Positions: 10, P&L: $6895.592656000001
+[2025-05-25 16:21:41] Best performer: DOTUSD (+8001.34%)
+[2025-05-25 16:21:41] ✅ Verification test completed successfully!

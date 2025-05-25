@@ -1,5 +1,50 @@
 # Crypto Refactor
 
+## Configuration Setup
+
+This project uses a centralized configuration system that manages API keys, trading parameters, and model settings. Before running any scripts, you need to set up your configuration.
+
+### 1. Environment Variables Setup
+
+Copy the template file and add your API keys:
+
+```bash
+# Copy the template
+cp .env.template .env
+
+# Edit the .env file with your actual API keys
+nano .env  # or use your preferred editor
+```
+
+### 2. Required API Keys
+
+- **Alpaca Trading API**: Get from [Alpaca Markets](https://alpaca.markets/)
+  - `ALPACA_API_KEY`
+  - `ALPACA_SECRET_KEY`
+  
+- **OpenAI API**: Get from [OpenAI Platform](https://platform.openai.com/api-keys)
+  - `OPENAI_API_KEY`
+  
+- **Perplexity API** (optional): Get from [Perplexity AI](https://www.perplexity.ai/settings/api)
+  - `PERPLEXITY_API_KEY`
+
+### 3. Test Configuration
+
+Run the configuration example to verify your setup:
+
+```bash
+python3 example_config_usage.py
+```
+
+This script will show you which APIs are configured and test basic connectivity.
+
+**Alternative verification** (writes results to `verification_log.txt`):
+```bash
+python3 verify_implementation.py
+```
+
+---
+
 ## Quick Start Commands
 
 ### LSTM Signal Generation
@@ -28,6 +73,29 @@ python3 models/app_backtester.py --ticker ETH/USD --hours 1440 --initial-balance
 # Long-term backtest (90 days) with higher initial balance
 python3 models/app_backtester.py --ticker BTC/USD --hours 2160 --initial-balance 100000
 ```
+
+### Alpaca Trading & Positions Testing
+```bash
+# Complete integration test with comprehensive analysis
+python3 integration_test.py
+
+# Test Alpaca client configuration and connectivity
+python3 exchanges/test_alpaca_client.py
+
+# COMPREHENSIVE positions testing with full portfolio analysis (RECOMMENDED)
+python3 comprehensive_alpaca_test.py
+
+# Comprehensive positions analysis and portfolio summary
+python3 test_alpaca_positions.py
+
+# Simple positions test with basic error handling
+python3 simple_positions_test.py
+
+# Test configuration system with all components
+python3 example_config_usage.py
+
+# Verification test (writes to verification_log.txt)
+python3 verify_implementation.py
 ```
 
 ### Data Testing
