@@ -11,9 +11,49 @@ from sklearn.preprocessing import RobustScaler, MinMaxScaler
 from tensorflow.keras.models import load_model, Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout, BatchNormalization, Input, GRU, Conv1D, MaxPooling1D, Flatten
 from tensorflow.keras.optimizers import Adam, RMSprop
-from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau, Callback
 from tensorflow.keras.losses import Huber, MeanSquaredError
 from concurrent.futures import ThreadPoolExecutor
+import signal
+import sys
+import io
+from contextlib import contextmanager
+
+# Custom callback for detailed epoch progress tracking
+class DetailedEpochProgressCallback(Callback):
+    """Custom callback to display detailed progress for each epoch"""
+    def __init__(self, total_epochs):
+        super(DetailedEpochProgressCallback, self).__init__()
+        self.total_epochs = total_epochs
+        self.start_time = None
+        
+    def on_train_begin(self, logs=None):
+        self.start_time = time.time()
+        print("\n" + "=" * 60)
+        print(f"🏁 Starting training with {self.total_epochs} epochs")
+        print("=" * 60)
+        
+    def on_epoch_begin(self, epoch, logs=None):
+        self.epoch_start_time = time.time()
+        sys.stdout.write(f"\r📊 Epoch {epoch+1}/{self.total_epochs} - Starting... ")
+        sys.stdout.flush()
+        
+    def on_epoch_end(self, epoch, logs=None):
+        epoch_time = time.time() - self.epoch_start_time
+        total_time = time.time() - self.start_time
+        
+        # Calculate ETA for remaining epochs
+        avg_epoch_time = total_time / (epoch + 1)
+        eta = avg_epoch_time * (self.total_epochs - epoch - 1)
+        eta_min = int(eta // 60)
+        eta_sec = int(eta % 60)
+        
+        # Format metrics for display
+        metrics_str = " - ".join([f"{k}: {v:.4f}" for k, v in logs.items()])
+        
+        # Print epoch summary
+        print(f"\r✅ Epoch {epoch+1}/{self.total_epochs} - {metrics_str} - {epoch_time:.2f}s - ETA: {eta_min:02d}:{eta_sec:02d}")
+        sys.stdout.flush()
 
 # Add project root to path for imports
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -26,6 +66,98 @@ from utils.safe_math import safe_div, safe_ratio, safe_percentage, safe_risk_rew
 # Enable TensorFlow optimizations
 tf.config.experimental.enable_tensor_float_32_execution(True)  # Updated API call
 tf.get_logger().setLevel('ERROR')  # Reduce TF logging noise
+
+class TimeoutException(Exception):
+    """Exception raised when training times out"""
+    pass
+
+@contextmanager
+def timeout_handler(seconds):
+    """Context manager for handling training timeouts"""
+    def timeout_signal_handler(signum, frame):
+        raise TimeoutException(f"Training timed out after {seconds} seconds")
+    
+    # Set the signal handler and a {seconds}-second alarm
+    old_handler = signal.signal(signal.SIGALRM, timeout_signal_handler)
+    signal.alarm(seconds)
+    
+    try:
+        yield
+    finally:
+        # Restore the old signal handler
+        signal.signal(signal.SIGALRM, old_handler)
+        signal.alarm(0)
+
+class EnhancedProgressCallback(Callback):
+    """Enhanced callback for detailed epoch progress monitoring"""
+    
+    def __init__(self, update_freq=1):
+        super().__init__()
+        self.update_freq = update_freq
+        self.epoch_start_time = None
+        self.training_start_time = None
+        
+    def on_train_begin(self, logs=None):
+        self.training_start_time = time.time()
+        print("\n🚀 ══════════════════════════════════════════════════════════")
+        print("   📊 LSTM MODEL TRAINING STARTED")
+        print("🚀 ══════════════════════════════════════════════════════════")
+        print(f"⏰ Training started at: {datetime.now().strftime('%H:%M:%S')}")
+        print(f"🎯 Target epochs: {self.params.get('epochs', 'Unknown')}")
+        print(f"📦 Batch size: {self.params.get('batch_size', 'Unknown')}")
+        print("═══════════════════════════════════════════════════════════\n")
+        
+    def on_epoch_begin(self, epoch, logs=None):
+        self.epoch_start_time = time.time()
+        total_epochs = self.params.get('epochs', 0)
+        progress_pct = ((epoch + 1) / total_epochs) * 100 if total_epochs > 0 else 0
+        
+        # Progress bar
+        bar_length = 30
+        filled_length = int(bar_length * (epoch + 1) // total_epochs) if total_epochs > 0 else 0
+        bar = '█' * filled_length + '░' * (bar_length - filled_length)
+        
+        print(f"\n📈 Epoch {epoch + 1:3d}/{total_epochs} [{bar}] {progress_pct:5.1f}%")
+        print(f"⏰ Started: {datetime.now().strftime('%H:%M:%S')}")
+        
+    def on_epoch_end(self, epoch, logs=None):
+        if self.epoch_start_time:
+            epoch_duration = time.time() - self.epoch_start_time
+            total_elapsed = time.time() - self.training_start_time
+            
+            # Extract metrics
+            loss = logs.get('loss', 0)
+            val_loss = logs.get('val_loss', 0)
+            mae = logs.get('mae', 0)
+            val_mae = logs.get('val_mae', 0)
+            lr = logs.get('lr', self.model.optimizer.learning_rate.numpy() if hasattr(self.model.optimizer.learning_rate, 'numpy') else 0.002)
+            
+            # Calculate ETA
+            avg_epoch_time = total_elapsed / (epoch + 1)
+            remaining_epochs = self.params.get('epochs', 0) - (epoch + 1)
+            eta_seconds = avg_epoch_time * remaining_epochs
+            eta_str = str(timedelta(seconds=int(eta_seconds)))
+            
+            print(f"✅ Completed in {epoch_duration:.2f}s")
+            print(f"📊 Loss: {loss:.6f} | Val Loss: {val_loss:.6f}")
+            print(f"📏 MAE: {mae:.6f} | Val MAE: {val_mae:.6f}")
+            print(f"🎛️  Learning Rate: {lr:.2e}")
+            print(f"⏱️  Total Time: {str(timedelta(seconds=int(total_elapsed)))}")
+            print(f"⏳ ETA: {eta_str}")
+            print("─" * 60)
+            
+    def on_train_end(self, logs=None):
+        if self.training_start_time:
+            total_time = time.time() - self.training_start_time
+            print("\n🎉 ══════════════════════════════════════════════════════════")
+            print("   ✅ LSTM MODEL TRAINING COMPLETED!")
+            print("🎉 ══════════════════════════════════════════════════════════")
+            print(f"⏰ Training completed at: {datetime.now().strftime('%H:%M:%S')}")
+            print(f"⏱️  Total training time: {str(timedelta(seconds=int(total_time)))}")
+            if logs:
+                final_loss = logs.get('loss', logs.get('val_loss', 'N/A'))
+                print(f"📊 Final loss: {final_loss}")
+            print("═══════════════════════════════════════════════════════════\n")
 
 class AggressiveCryptoSignalGenerator:
     """
@@ -87,6 +219,10 @@ class AggressiveCryptoSignalGenerator:
         print(f"🚀 Initialized Aggressive Crypto Signal Generator for {ticker}")
         print(f"📊 Model path: {self.model_path}")
         print(f"⚡ Optimized for maximum short-term profit extraction")
+
+    def get_model_path(self) -> str:
+        """Return the path where the model is saved/will be saved"""
+        return self.model_path
 
     def get_historical_data(self, hours=24):  # Reduced timeframe for aggressiveness
         """Fetch high-frequency data optimized for short-term trading"""
@@ -262,18 +398,31 @@ class AggressiveCryptoSignalGenerator:
         
         return self.model
 
-    def train_aggressive_model(self, X, y, validation_split=0.15):
-        """Aggressive training with high learning rate and fast convergence"""
+    def train_aggressive_model(self, X, y, validation_split=0.15, max_epochs=50, timeout_seconds=600):
+        """Aggressive training with high learning rate and fast convergence
+        
+        Args:
+            X: Training features
+            y: Training targets
+            validation_split: Portion of data to use for validation (default: 0.15)
+            max_epochs: Maximum number of epochs to train (default: 50)
+            timeout_seconds: Maximum training time in seconds (default: 600 - 10 minutes)
+            
+        Returns:
+            training history or None if timeout occurred
+        """
         print("🚀 Starting aggressive model training...")
         print(f"Training data - X: {X.shape}, y: {y.shape}")
         
         if len(X) == 0 or len(y) == 0:
             raise ValueError("No training data available")
         
-        # Aggressive callbacks
+        # Aggressive callbacks with detailed progress tracking
+        progress_callback = DetailedEpochProgressCallback(total_epochs=max_epochs)
         callbacks = [
-            EarlyStopping(monitor='val_loss', patience=8, restore_best_weights=True, verbose=1),
-            ModelCheckpoint(self.model_path, save_best_only=True, verbose=1),
+            progress_callback,
+            EarlyStopping(monitor='val_loss', patience=8, restore_best_weights=True, verbose=0),
+            ModelCheckpoint(self.model_path, save_best_only=True, verbose=0),
             ReduceLROnPlateau(monitor='val_loss', factor=0.3, patience=3, min_lr=1e-7, verbose=1)
         ]
 
@@ -281,22 +430,33 @@ class AggressiveCryptoSignalGenerator:
         optimizer = Adam(learning_rate=0.002, beta_1=0.9, beta_2=0.999, clipnorm=1.0)
         self.model.compile(optimizer=optimizer, loss=Huber(delta=0.5), metrics=['mae'])
 
-        print("⚡ Training with aggressive parameters...")
+        print("\n⚡ Training with aggressive parameters...")
+        print(f"⏱️ Max epochs: {max_epochs}, Batch size: 32, Timeout: {timeout_seconds}s")
+        
         try:
-            history = self.model.fit(
-                X, y,
-                epochs=50,
-                batch_size=32,
-                validation_split=validation_split,
-                callbacks=callbacks,
-                verbose=1,
-                shuffle=True
-            )
+            # Use the timeout_handler context manager to prevent hanging
+            with timeout_handler(timeout_seconds):
+                history = self.model.fit(
+                    X, y,
+                    epochs=max_epochs,
+                    batch_size=32,
+                    validation_split=validation_split,
+                    callbacks=callbacks,
+                    verbose=0,  # Set to 0 as we're using our custom progress callback
+                    shuffle=True
+                )
             
             print("✅ Aggressive training completed")
             self.last_training_time = datetime.now()
             return history
             
+        except TimeoutException as e:
+            print(f"\n⚠️ {str(e)}")
+            print("💾 Saving current model state...")
+            self.model.save(self.model_path)
+            print("✅ Model saved despite timeout")
+            self.last_training_time = datetime.now()
+            return None
         except Exception as e:
             self.logger.error(f"Training failed: {e}")
             raise
@@ -363,7 +523,15 @@ class AggressiveCryptoSignalGenerator:
             
             if need_retrain:
                 print("🔄 Retraining aggressive model...")
-                self.train_aggressive_model(X, y[:len(X)])
+                # Use faster training settings in production
+                max_epochs = 25  # Reduced from 50 to make training faster
+                timeout = 300    # 5-minute timeout
+                self.train_aggressive_model(
+                    X, 
+                    y[:len(X)], 
+                    max_epochs=max_epochs,
+                    timeout_seconds=timeout
+                )
                     
         except Exception as e:
             return {"error": f"Model preparation failed: {e}", "signal": 0}

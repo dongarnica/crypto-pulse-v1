@@ -44,6 +44,9 @@ from models.lstm_backtest import Backtester
 # LLM integration
 from llm.llm_client import LLMClient
 
+# Import display formatters
+from utils.display_formatters import TradeFormatter, RecommendationFormatter, format_currency, format_percentage, create_progress_bar
+
 
 class CryptoTradingBotApp:
     """
@@ -931,6 +934,577 @@ class CryptoTradingBotApp:
                 self.logger.error(f"Error executing multi-ticker trades: {str(e)}")
         else:
             self.logger.warning("No trading controller available for trade execution")
+    
+    def run_automated_trading_mode(self, duration_hours: int = 24):
+        """Run comprehensive LSTM-based automated trading for all tickers."""
+        
+        self.logger.info(f"🤖 Starting LSTM-Based Automated Trading Mode for {duration_hours} hours")
+        self.mode = "trading"
+        self.running = True
+        
+        # Load all tickers from tickers.txt
+        tickers = self._load_tickers_from_file()
+        if not tickers:
+            print("❌ No tickers found in tickers.txt")
+            return
+        
+        print(f"🎯 Processing {len(tickers)} tickers: {', '.join(tickers)}")
+        
+        # Initialize components
+        if not self._initialize_trading_components():
+            return
+            
+        # Store training parameters
+        self.max_epochs = getattr(self, 'max_epochs', 25)
+        self.training_timeout = getattr(self, 'training_timeout', 300)
+        
+        # Initialize signal generator cache for efficient reuse
+        self.signal_generator_cache = {}
+        print(f"🧠 Initializing signal generator cache for {len(tickers)} tickers...")
+            
+        # Display header
+        self._display_trading_header(tickers, duration_hours)
+        
+        end_time = datetime.now() + timedelta(hours=duration_hours)
+        cycle_count = 0
+        
+        try:
+            while self.running and datetime.now() < end_time:
+                cycle_count += 1
+                cycle_start = datetime.now()
+                
+                print(f"\n🔄 TRADING CYCLE #{cycle_count} - {cycle_start.strftime('%H:%M:%S')}")
+                print("=" * 80)
+                
+                # Process each ticker
+                all_signals = []
+                for i, ticker in enumerate(tickers):
+                    if not self.running:
+                        break
+                        
+                    print(f"\n📊 Processing {ticker} ({i+1}/{len(tickers)})")
+                    
+                    # Step 1: Ensure LSTM model exists and is trained
+                    model_status = self._ensure_lstm_model(ticker)
+                    
+                    # Step 2: Generate LSTM signal (optimized: reuses cached generator, only fetches data for this ticker)
+                    signal_data = self._generate_lstm_signal_for_ticker(ticker)
+                    
+                    # Step 3: Process and enhance signal
+                    if signal_data:
+                        enhanced_signal = self._process_signal(signal_data)
+                        if enhanced_signal:
+                            all_signals.append(enhanced_signal)
+                    
+                    # Brief pause between tickers
+                    time.sleep(1)
+                
+                # Step 4: Execute trades for all valid signals
+                if all_signals:
+                    self._execute_batch_trades(all_signals)
+                else:
+                    print("\n⚪ No trading signals generated this cycle")
+                
+                # Step 5: Portfolio status update
+                self._display_portfolio_summary()
+                
+                # Step 6: Wait for next cycle (15 minutes)
+                self._wait_for_next_cycle(900)  # 15 minutes
+                
+        except KeyboardInterrupt:
+            self.logger.info("Automated trading interrupted by user")
+        except Exception as e:
+            self.logger.error(f"Automated trading error: {str(e)}")
+            print(f"❌ Error: {str(e)}")
+        finally:
+            # Clean up resources
+            if hasattr(self, 'signal_generator_cache'):
+                self._clear_signal_generator_cache()
+            self.running = False
+            print("\n🛑 Automated trading stopped")
+    
+    def _load_tickers_from_file(self) -> List[str]:
+        """Load ticker symbols from tickers.txt file."""
+        try:
+            tickers_file = os.path.join(os.path.dirname(__file__), 'tickers.txt')
+            if not os.path.exists(tickers_file):
+                self.logger.error("tickers.txt file not found")
+                return []
+            
+            with open(tickers_file, 'r') as f:
+                lines = f.readlines()
+            
+            # Filter out comments and empty lines
+            tickers = []
+            for line in lines:
+                line = line.strip()
+                if line and not line.startswith('//') and not line.startswith('#'):
+                    tickers.append(line)
+            
+            return tickers
+            
+        except Exception as e:
+            self.logger.error(f"Error loading tickers: {str(e)}")
+            return []
+    
+    def _initialize_trading_components(self) -> bool:
+        """Initialize all required trading components."""
+        try:
+            # Check trading controller
+            if not self.trading_controller:
+                print("❌ Trading controller not available. Check Alpaca credentials.")
+                return False
+            
+            # Check data client
+            if not self.data_client:
+                print("❌ Data client not available.")
+                return False
+                
+            # Check Alpaca client
+            if not self.alpaca_client:
+                print("❌ Alpaca client not available.")
+                return False
+            
+            print("✅ All trading components initialized")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Component initialization error: {str(e)}")
+            return False
+    
+    def _display_trading_header(self, tickers: List[str], duration_hours: int):
+        """Display trading session header information."""
+        print("\n" + "=" * 80)
+        print("🚀 LSTM-BASED AUTOMATED CRYPTO TRADING")
+        print("=" * 80)
+        print(f"📅 Start Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"⏱️  Duration: {duration_hours} hours")
+        print(f"🎯 Tickers: {len(tickers)} symbols")
+        print(f"🔄 Cycle Interval: 15 minutes")
+        print(f"🧠 LSTM Training: {'✅ Enabled' if self.max_epochs > 0 else '❌ Disabled'}")
+        print(f"⚡ Max Epochs: {self.max_epochs}")
+        print(f"⏲️  Training Timeout: {self.training_timeout}s")
+        print("=" * 80)
+    
+    def _ensure_lstm_model(self, ticker: str) -> Dict:
+        """Ensure LSTM model exists and is trained for the ticker."""
+        try:
+            print(f"   🧠 Checking LSTM model for {ticker}...", end=" ")
+            
+            # Get cached signal generator (more efficient)
+            signal_generator = self._get_or_create_signal_generator(ticker)
+            
+            # Check if model needs training
+            model_path = signal_generator.get_model_path()
+            needs_training = not os.path.exists(model_path)
+            
+            if needs_training:
+                print("🔄 Training needed")
+                print(f"   📚 Training LSTM model (max {self.max_epochs} epochs)...")
+                
+                # Train with timeout
+                training_start = time.time()
+                
+                try:
+                    # Start training in a separate thread to allow timeout
+                    training_result = self._train_model_with_timeout(
+                        signal_generator, 
+                        self.training_timeout,
+                        self.max_epochs
+                    )
+                    
+                    training_time = time.time() - training_start
+                    
+                    if training_result.get('success', False):
+                        print(f"   ✅ Model trained successfully in {training_time:.1f}s")
+                        return {'status': 'trained', 'training_time': training_time}
+                    else:
+                        print(f"   ❌ Training failed: {training_result.get('error', 'Unknown error')}")
+                        return {'status': 'failed', 'error': training_result.get('error')}
+                        
+                except Exception as e:
+                    print(f"   ❌ Training error: {str(e)}")
+                    return {'status': 'error', 'error': str(e)}
+            else:
+                print("✅ Model ready")
+                return {'status': 'ready'}
+                
+        except Exception as e:
+            print(f"   ❌ Model check error: {str(e)}")
+            return {'status': 'error', 'error': str(e)}
+    
+    def _train_model_with_timeout(self, signal_generator, timeout: int, max_epochs: int) -> Dict:
+        """Train LSTM model with timeout protection."""
+        import signal as signal_module
+        
+        result = {'success': False, 'error': None}
+        
+        def timeout_handler(signum, frame):
+            raise TimeoutError(f"Training timeout after {timeout} seconds")
+        
+        # Set timeout
+        signal_module.signal(signal_module.SIGALRM, timeout_handler)
+        signal_module.alarm(timeout)
+        
+        try:
+            # Train the model
+            signal_generator.train_model(
+                hours=self.config.lookback or 168,  # 1 week default
+                epochs=max_epochs,
+                verbose=False
+            )
+            result['success'] = True
+            
+        except TimeoutError as e:
+            result['error'] = str(e)
+        except Exception as e:
+            result['error'] = f"Training failed: {str(e)}"
+        finally:
+            signal_module.alarm(0)  # Cancel timeout
+        
+        return result
+    
+    def _generate_lstm_signal_for_ticker(self, ticker: str) -> Optional[Dict]:
+        """Generate LSTM trading signal for a specific ticker using cached generator."""
+        try:
+            print(f"   🎯 Generating signal...", end=" ")
+            
+            # Get cached signal generator (more efficient than creating new one)
+            signal_generator = self._get_or_create_signal_generator(ticker)
+            
+            # Generate signal (this will fetch data only for this specific ticker)
+            signal_result = signal_generator.generate_aggressive_signals(
+                hours=self.config.lookback or 24,
+                retrain_threshold=6
+            )
+            
+            if 'error' in signal_result:
+                print(f"❌ {signal_result['error']}")
+                return None
+            
+            if signal_result and signal_result.get('signal') != 0:
+                signal_type = 'BUY' if signal_result['signal'] > 0 else 'SELL'
+                confidence = signal_result.get('confidence', 0)
+                print(f"🎯 {signal_type} (confidence: {confidence:.2f})")
+                
+                return {
+                    'symbol': ticker,
+                    'signal': signal_type,
+                    'confidence': confidence,
+                    'current_price': signal_result.get('current_price', 0),
+                    'predicted_price': signal_result.get('predicted_price'),
+                    'timestamp': signal_result.get('timestamp', datetime.now().isoformat()),
+                    'indicators': {
+                        'momentum_score': signal_result.get('momentum_score', 0),
+                        'volatility_breakout': signal_result.get('volatility_breakout', False),
+                        'volume_surge': signal_result.get('volume_surge', 1.0),
+                        'rsi_fast': signal_result.get('rsi_fast', 50),
+                        'risk_multiplier': signal_result.get('risk_multiplier', 1.0)
+                    },
+                    'trade_recommendation': signal_result.get('trade_recommendation', {})
+                }
+            else:
+                print("⚪ No signal")
+                return None
+                
+        except Exception as e:
+            print(f"❌ Error: {str(e)}")
+            self.logger.error(f"Signal generation error for {ticker}: {str(e)}")
+            return None
+    
+    def _process_signal(self, signal_data: Dict) -> Optional[Dict]:
+        """Process and enhance signal with additional validation."""
+        try:
+            # Basic validation
+            confidence = signal_data.get('confidence', 0)
+            if confidence < 0.6:  # Minimum confidence threshold
+                print(f"   ⚠️  Low confidence ({confidence:.2f}), skipping")
+                return None
+            
+            # Enhance with LLM if available
+            if self.llm_client:
+                enhanced_signal = self._enhance_signal_with_llm(signal_data)
+                signal_data.update(enhanced_signal)
+            
+            # Add risk assessment
+            signal_data['risk_assessment'] = self._assess_signal_risk(signal_data)
+            
+            print(f"   ✅ Signal processed (confidence: {confidence:.2f})")
+            return signal_data
+            
+        except Exception as e:
+            self.logger.error(f"Signal processing error: {str(e)}")
+            return None
+    
+    def _assess_signal_risk(self, signal_data: Dict) -> Dict:
+        """Assess risk level of the trading signal."""
+        try:
+            confidence = signal_data.get('confidence', 0)
+            indicators = signal_data.get('indicators', {})
+            
+            # Risk factors
+            risk_score = 0
+            
+            # Confidence risk
+            if confidence < 0.7:
+                risk_score += 30
+            elif confidence < 0.8:
+                risk_score += 15
+            
+            # Volatility risk
+            if indicators.get('volatility_breakout', False):
+                risk_score += 20
+            
+            # RSI risk
+            rsi = indicators.get('rsi_fast', 50)
+            if rsi > 80 or rsi < 20:
+                risk_score += 25
+            
+            # Volume risk
+            volume_surge = indicators.get('volume_surge', 1.0)
+            if volume_surge < 0.8:
+                risk_score += 15
+            
+            # Risk level determination
+            if risk_score <= 20:
+                risk_level = 'LOW'
+            elif risk_score <= 40:
+                risk_level = 'MEDIUM'
+            elif risk_score <= 60:
+                risk_level = 'HIGH'
+            else:
+                risk_level = 'CRITICAL'
+            
+            return {
+                'risk_score': risk_score,
+                'risk_level': risk_level,
+                'risk_factors': self._identify_risk_factors(risk_score, confidence, indicators)
+            }
+            
+        except Exception as e:
+            return {'risk_level': 'UNKNOWN', 'error': str(e)}
+    
+    def _identify_risk_factors(self, risk_score: int, confidence: float, indicators: Dict) -> List[str]:
+        """Identify specific risk factors."""
+        factors = []
+        
+        if confidence < 0.7:
+            factors.append('Low prediction confidence')
+        if indicators.get('volatility_breakout', False):
+            factors.append('High volatility detected')
+        if indicators.get('rsi_fast', 50) > 80:
+            factors.append('Overbought conditions')
+        elif indicators.get('rsi_fast', 50) < 20:
+            factors.append('Oversold conditions')
+        if indicators.get('volume_surge', 1.0) < 0.8:
+            factors.append('Low trading volume')
+        
+        return factors
+    
+    def _execute_batch_trades(self, signals: List[Dict]):
+        """Execute trades for all valid signals with portfolio management."""
+        try:
+            print(f"\n💰 EXECUTING TRADES ({len(signals)} signals)")
+            print("-" * 50)
+            
+            total_executed = 0
+            total_skipped = 0
+            
+            for signal in signals:
+                try:
+                    result = self._execute_enhanced_trade(signal)
+                    if result.get('executed', False):
+                        total_executed += 1
+                    else:
+                        total_skipped += 1
+                        
+                except Exception as e:
+                    self.logger.error(f"Trade execution error for {signal.get('symbol')}: {str(e)}")
+                    total_skipped += 1
+            
+            # Summary
+            print(f"\n📊 EXECUTION SUMMARY")
+            print(f"   ✅ Executed: {total_executed}")
+            print(f"   ⚠️  Skipped: {total_skipped}")
+            print(f"   📈 Success Rate: {(total_executed/(total_executed+total_skipped)*100) if (total_executed+total_skipped) > 0 else 0:.1f}%")
+            
+        except Exception as e:
+            self.logger.error(f"Batch trade execution error: {str(e)}")
+    
+    def _execute_enhanced_trade(self, signal_data: Dict) -> Dict:
+        """Execute trade with enhanced validation and risk management."""
+        try:
+            symbol = signal_data['symbol']
+            signal = signal_data['signal']
+            confidence = signal_data['confidence']
+            risk_assessment = signal_data.get('risk_assessment', {})
+            
+            print(f"🎯 {symbol}: {signal} (confidence: {confidence:.2f})", end=" ")
+            
+            # Risk-based filtering
+            risk_level = risk_assessment.get('risk_level', 'UNKNOWN')
+            if risk_level == 'CRITICAL':
+                print("❌ CRITICAL RISK - Trade blocked")
+                return {'executed': False, 'reason': 'Critical risk level'}
+            
+            # Confidence filtering
+            min_confidence = 0.75 if risk_level == 'HIGH' else 0.65
+            if confidence < min_confidence:
+                print(f"❌ Low confidence for {risk_level} risk")
+                return {'executed': False, 'reason': 'Insufficient confidence'}
+            
+            # Calculate position size based on risk
+            position_size = self._calculate_risk_adjusted_position_size(signal_data)
+            
+            if not self.alpaca_client:
+                print("❌ No trading client")
+                return {'executed': False, 'reason': 'No trading client'}
+            
+            # Execute the trade
+            alpaca_symbol = symbol.replace('/', '')
+            
+            try:
+                if signal == 'BUY':
+                    result = self.alpaca_client.place_order(
+                        symbol=alpaca_symbol,
+                        qty=position_size,
+                        side='buy',
+                        type='market'
+                    )
+                elif signal == 'SELL':
+                    result = self.alpaca_client.place_order(
+                        symbol=alpaca_symbol,
+                        qty=position_size,
+                        side='sell',
+                        type='market'
+                    )
+                else:
+                    print("❌ Invalid signal")
+                    return {'executed': False, 'reason': 'Invalid signal'}
+                
+                if result and 'id' in result:
+                    print(f"✅ ORDER PLACED (${position_size:.2f})")
+                    self.logger.info(f"Trade executed: {symbol} {signal} ${position_size:.2f}")
+                    return {'executed': True, 'order_id': result['id'], 'amount': position_size}
+                else:
+                    print("❌ Order failed")
+                    return {'executed': False, 'reason': 'Order placement failed'}
+                
+            except Exception as e:
+                print(f"❌ Execution error: {str(e)}")
+                return {'executed': False, 'reason': str(e)}
+                
+        except Exception as e:
+            self.logger.error(f"Enhanced trade execution error: {str(e)}")
+            return {'executed': False, 'reason': str(e)}
+    
+    def _calculate_risk_adjusted_position_size(self, signal_data: Dict) -> float:
+        """Calculate position size based on risk assessment."""
+        try:
+            base_position_size = self.config.risk_params.get('position_size', 100.0)
+            risk_level = signal_data.get('risk_assessment', {}).get('risk_level', 'MEDIUM')
+            confidence = signal_data.get('confidence', 0.5)
+            
+            # Risk multipliers
+            risk_multipliers = {
+                'LOW': 1.2,
+                'MEDIUM': 1.0,
+                'HIGH': 0.7,
+                'CRITICAL': 0.3
+            }
+            
+            # Confidence multiplier
+            confidence_multiplier = min(confidence * 1.5, 1.2)
+            
+            # Calculate final size
+            risk_multiplier = risk_multipliers.get(risk_level, 0.5)
+            final_size = base_position_size * risk_multiplier * confidence_multiplier
+            
+            # Ensure minimum and maximum bounds
+            min_size = 10.0
+            max_size = base_position_size * 2.0
+            
+            return max(min_size, min(final_size, max_size))
+            
+        except Exception as e:
+            self.logger.error(f"Position size calculation error: {str(e)}")
+            return self.config.risk_params.get('position_size', 100.0) * 0.5
+    
+    def _display_portfolio_summary(self):
+        """Display current portfolio summary."""
+        try:
+            if not self.alpaca_client:
+                return
+                
+            print(f"\n💼 PORTFOLIO STATUS")
+            print("-" * 30)
+            
+            # Get account info
+            account = self.alpaca_client.get_account()
+            if account:
+                equity = float(account.get('equity', 0))
+                buying_power = float(account.get('buying_power', 0))
+                pnl = float(account.get('unrealized_pnl', 0))
+                
+                print(f"💰 Equity: {format_currency(equity)}")
+                print(f"💳 Buying Power: {format_currency(buying_power)}")
+                print(f"📊 Unrealized P&L: {format_currency(pnl)}")
+            
+            # Get positions
+            positions = self.alpaca_client.list_positions()
+            if positions:
+                print(f"📈 Active Positions: {len(positions)}")
+                for pos in positions[:3]:  # Show top 3
+                    symbol = pos.get('symbol', 'Unknown')
+                    qty = float(pos.get('qty', 0))
+                    market_value = float(pos.get('market_value', 0))
+                    unrealized_pnl = float(pos.get('unrealized_pnl', 0))
+                    
+                    print(f"   {symbol}: {qty:.4f} units, {format_currency(market_value)} ({format_currency(unrealized_pnl)})")
+            else:
+                print("📈 No active positions")
+                
+        except Exception as e:
+            self.logger.error(f"Portfolio summary error: {str(e)}")
+            print("❌ Portfolio data unavailable")
+    
+    def _wait_for_next_cycle(self, wait_seconds: int):
+        """Wait for next trading cycle with progress indication."""
+        try:
+            print(f"\n⏱️  Waiting {wait_seconds//60} minutes until next cycle...")
+            
+            # Show progress every 30 seconds
+            for i in range(0, wait_seconds, 30):
+                if not self.running:
+                    break
+                    
+                remaining = wait_seconds - i
+                progress = (i / wait_seconds) * 100
+                
+                print(f"\r   {create_progress_bar(progress, 40)} {remaining//60:02d}:{remaining%60:02d} remaining", end="")
+                
+                # Sleep for 30 seconds or until stopped
+                for j in range(30):
+                    if not self.running:
+                        break
+                    time.sleep(1)
+            
+            print()  # New line after progress
+            
+        except KeyboardInterrupt:
+            self.running = False
+    
+    def _get_or_create_signal_generator(self, ticker: str):
+        """Get cached signal generator or create new one for ticker."""
+        if ticker not in self.signal_generator_cache:
+            self.logger.debug(f"Creating new signal generator for {ticker}")
+            self.signal_generator_cache[ticker] = AggressiveCryptoSignalGenerator(ticker=ticker)
+        return self.signal_generator_cache[ticker]
+
+    def _clear_signal_generator_cache(self):
+        """Clear signal generator cache to free memory."""
+        self.signal_generator_cache.clear()
+        self.logger.debug("Signal generator cache cleared")
 
 
 def main():
@@ -941,18 +1515,20 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python main_app.py --mode dashboard                    # Interactive dashboard
-  python main_app.py --mode trading --duration 24       # Automated trading for 24 hours
-  python main_app.py --mode analysis --period 30        # 30-day performance analysis
-  python main_app.py --mode backtest --hours 720        # Backtest for 720 hours
-  python main_app.py --mode data --duration 1           # Data collection for 1 hour
-  python main_app.py --mode setup                       # System setup and validation
+  python main_app.py --mode dashboard                         # Interactive dashboard
+  python main_app.py --mode trading --duration 24            # Automated trading for 24 hours
+  python main_app.py --mode lstm-trading --duration 24       # LSTM-based trading for all tickers
+  python main_app.py --mode lstm-trading --max-epochs 50     # LSTM trading with custom epochs
+  python main_app.py --mode analysis --period 30             # 30-day performance analysis
+  python main_app.py --mode backtest --hours 720             # Backtest for 720 hours
+  python main_app.py --mode data --duration 1                # Data collection for 1 hour
+  python main_app.py --mode setup                            # System setup and validation
         """
     )
     
     parser.add_argument(
         '--mode', 
-        choices=['dashboard', 'trading', 'analysis', 'backtest', 'data', 'setup'],
+        choices=['dashboard', 'trading', 'lstm-trading', 'analysis', 'backtest', 'data', 'setup'],
         default='dashboard',
         help='Execution mode (default: dashboard)'
     )
@@ -988,6 +1564,20 @@ Examples:
         type=int,
         default=24,
         help='Duration in hours for trading/data modes (default: 24)'
+    )
+    
+    parser.add_argument(
+        '--max-epochs',
+        type=int,
+        default=25,
+        help='Maximum training epochs for LSTM model (default: 25)'
+    )
+    
+    parser.add_argument(
+        '--training-timeout',
+        type=int,
+        default=300,  # 5 minutes
+        help='Maximum training time in seconds (default: 300)'
     )
     
     parser.add_argument(
@@ -1037,6 +1627,10 @@ Examples:
         # Initialize application
         app = CryptoTradingBotApp(config)
         
+        # Set training parameters
+        app.max_epochs = args.max_epochs
+        app.training_timeout = args.training_timeout
+        
         print(f"🚀 Starting Crypto Trading Bot in {args.mode.upper()} mode")
         if args.multi_ticker:
             active_tickers = config.get_active_tickers()
@@ -1055,6 +1649,9 @@ Examples:
             
         elif args.mode == 'trading':
             app.run_automated_trading(duration_hours=args.duration)
+            
+        elif args.mode == 'lstm-trading':
+            app.run_automated_trading_mode(duration_hours=args.duration)
             
         elif args.mode == 'analysis':
             app.run_analysis_mode(period_days=args.period)
