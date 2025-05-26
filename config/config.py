@@ -4,7 +4,7 @@ from datetime import datetime
 import pytz
 import logging
 import logging.handlers
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 load_dotenv()
 
@@ -12,14 +12,23 @@ class AppConfig:
     """
     Centralized configuration class for managing API keys, secrets, and application settings.
     Provides both class-based and dictionary-like access to configuration values.
+    Supports multiple ticker symbols loaded from tickers.txt.
     """
     
     def __init__(self, ticker: str = "BTC"):
+        # Load all available tickers from file
+        self.available_tickers = self._load_tickers()
+        
+        # Set default ticker
         self.ticker_short = ticker.upper()
         self.ticker_slash = f'{self.ticker_short}/USD'
         self.ticker_strip = f'{self.ticker_short}USD'
         self.model_name = f'ticker_model_{self.ticker_short.lower()}.keras'
         self.model_dir = os.path.join(os.getcwd(), "trade_models")
+        
+        # Validate ticker is in available list
+        if self.ticker_slash not in self.available_tickers:
+            print(f"Warning: {self.ticker_slash} not found in tickers.txt. Available tickers: {self.available_tickers}")
         
         # API Keys and Secrets
         self.ai_api_key = os.getenv("OPENAI_API_KEY")
@@ -39,6 +48,18 @@ class AppConfig:
             'take_profit_mult': float(os.getenv("TAKE_PROFIT_MULT", "3")),  # 3x ATR
             'max_positions': int(os.getenv("MAX_POSITIONS", "5"))
         }
+        
+        # Multi-ticker trading parameters
+        self.multi_ticker_params = {
+            'enable_multi_ticker': os.getenv("ENABLE_MULTI_TICKER", "false").lower() == "true",
+            'max_tickers_active': int(os.getenv("MAX_TICKERS_ACTIVE", "3")),
+            'portfolio_allocation_per_ticker': float(os.getenv("PORTFOLIO_ALLOCATION_PER_TICKER", "0.33"))  # 33% per ticker max
+        }
+        
+        # Multi-ticker settings (can be overridden by command line args)
+        self.multi_ticker_enabled = self.multi_ticker_params['enable_multi_ticker']
+        self.max_active_tickers = self.multi_ticker_params['max_tickers_active']
+        self.ticker_allocation = self.multi_ticker_params['portfolio_allocation_per_ticker']
         
         # Time Settings
         self.timezone = pytz.timezone('America/Denver')
@@ -65,6 +86,50 @@ class AppConfig:
         
         # Setup logging
         self._setup_logging()
+    
+    def _load_tickers(self) -> List[str]:
+        """Load ticker symbols from tickers.txt file."""
+        tickers_file = os.path.join(os.path.dirname(__file__), '..', 'tickers.txt')
+        tickers = []
+        
+        try:
+            with open(tickers_file, 'r') as f:
+                for line in f:
+                    ticker = line.strip()
+                    if ticker and not ticker.startswith('#') and not ticker.startswith('//'):
+                        tickers.append(ticker)
+            
+            if not tickers:
+                print("Warning: No tickers found in tickers.txt, using default BTC/USD")
+                return ["BTC/USD"]
+                
+            print(f"Loaded {len(tickers)} tickers from tickers.txt: {tickers}")
+            return tickers
+            
+        except FileNotFoundError:
+            print("Warning: tickers.txt not found, using default BTC/USD")
+            return ["BTC/USD"]
+        except Exception as e:
+            print(f"Error loading tickers.txt: {e}, using default BTC/USD")
+            return ["BTC/USD"]
+    
+    def get_active_tickers(self) -> List[str]:
+        """Get list of tickers that should be actively traded."""
+        if self.multi_ticker_enabled:
+            max_active = self.max_active_tickers
+            return self.available_tickers[:max_active]
+        else:
+            return [self.ticker_slash]
+    
+    def get_ticker_config(self, ticker: str) -> Dict[str, str]:
+        """Get configuration for a specific ticker."""
+        ticker_short = ticker.split('/')[0] if '/' in ticker else ticker.replace('USD', '')
+        return {
+            'ticker_short': ticker_short,
+            'ticker_slash': f'{ticker_short}/USD',
+            'ticker_strip': f'{ticker_short}USD',
+            'model_name': f'ticker_model_{ticker_short.lower()}.keras'
+        }
     
     def _setup_logging(self) -> None:
         """Setup logging configuration for the application."""
@@ -150,7 +215,10 @@ class AppConfig:
             'ticker_short': self.ticker_short,
             'ticker_slash': self.ticker_slash,
             'ticker_strip': self.ticker_strip,
+            'available_tickers': self.available_tickers,
+            'active_tickers': self.get_active_tickers(),
             'risk_params': self.risk_params,
+            'multi_ticker_params': self.multi_ticker_params,
             'model_dir': self.model_dir,
             'model_name': self.model_name
         }
@@ -206,11 +274,16 @@ class AppConfig:
             'TICKER_SHORT': self.ticker_short,
             'TICKER_SLASH': self.ticker_slash,
             'TICKER_STRIP': self.ticker_strip,
+            'AVAILABLE_TICKERS': self.available_tickers,
+            'ACTIVE_TICKERS': self.get_active_tickers(),
             'MODEL_DIR': self.model_dir,
             'MODEL_NAME': self.model_name,
             
             # Risk Parameters
             **self.risk_params,
+            
+            # Multi-ticker Parameters
+            **self.multi_ticker_params,
             
             # Training Parameters
             'EPOCHS': self.epochs,

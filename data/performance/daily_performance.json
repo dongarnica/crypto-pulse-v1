@@ -22,5 +22,101 @@
       "return_pct": -5.2706060200917815,
       "unrealized_pnl": -12.671178803382917
     }
+  },
+  {
+    "date": "2025-05-25",
+    "timestamp": "2025-05-25T23:05:54.924880",
+    "portfolio_value": 93487.43380301926,
+    "unrealized_pnl": 93487.43380301926,
+    "total_positions": 10,
+    "avg_return_pct": 9348743.380301926,
+    "risk_distribution": {
+      "low": 10,
+      "medium": 0,
+      "high": 0,
+      "critical": 0
+    },
+    "top_performer": {
+      "symbol": "AAVE/USD",
+      "return_pct": 0,
+      "unrealized_pnl": 31311.28212905628
+    },
+    "worst_performer": {
+      "symbol": "SUSHI/USD",
+      "return_pct": 0,
+      "unrealized_pnl": 227.7410006515
+    }
+  },
+  {
+    "date": "2025-05-25",
+    "timestamp": "2025-05-25T23:07:23.487271",
+    "portfolio_value": 93584.03712931041,
+    "unrealized_pnl": 93584.03712931041,
+    "total_positions": 10,
+    "avg_return_pct": 9358403.71293104,
+    "risk_distribution": {
+      "low": 10,
+      "medium": 0,
+      "high": 0,
+      "critical": 0
+    },
+    "top_performer": {
+      "symbol": "AAVE/USD",
+      "return_pct": 0,
+      "unrealized_pnl": 31407.885455347438
+    },
+    "worst_performer": {
+      "symbol": "SUSHI/USD",
+      "return_pct": 0,
+      "unrealized_pnl": 227.7410006515
+    }
+  },
+  {
+    "date": "2025-05-25",
+    "timestamp": "2025-05-25T23:11:39.443698",
+    "portfolio_value": 0.0,
+    "unrealized_pnl": 0.0,
+    "total_positions": 10,
+    "avg_return_pct": 0.0,
+    "risk_distribution": {
+      "low": 10,
+      "medium": 0,
+      "high": 0,
+      "critical": 0
+    },
+    "top_performer": {
+      "symbol": "AAVE/USD",
+      "return_pct": 0,
+      "unrealized_pnl": 0.0
+    },
+    "worst_performer": {
+      "symbol": "SUSHI/USD",
+      "return_pct": 0,
+      "unrealized_pnl": 0.0
+    }
+  },
+  {
+    "date": "2025-05-25",
+    "timestamp": "2025-05-25T23:12:42.301278",
+    "portfolio_value": 0.0,
+    "unrealized_pnl": 0.0,
+    "total_positions": 10,
+    "avg_return_pct": 0.0,
+    "risk_distribution": {
+      "low": 10,
+      "medium": 0,
+      "high": 0,
+      "critical": 0
+    },
+    "top_performer": {
+      "symbol": "AAVE/USD",
+      "return_pct": 0,
+      "unrealized_pnl": 0.0
+    },
+    "worst_performer": {
+      "symbol": "SUSHI/USD",
+      "return_pct": 0,
+      "unrealized_pnl": 0.0
+    }
   }
 ]

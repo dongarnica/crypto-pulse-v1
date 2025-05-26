@@ -1,0 +1,15 @@
+{
+  "timestamp": "2025-05-25T23:05:52.435156",
+  "sync_results": {
+    "alpaca_count": 10,
+    "local_count": 10,
+    "synced": 10,
+    "discrepancies": [],
+    "new_positions": [],
+    "closed_positions": []
+  },
+  "recommendations": {
+    "urgent": [],
+    "high": [],
+    "medium": [
+      

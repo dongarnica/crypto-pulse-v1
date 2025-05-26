@@ -1,0 +1,174 @@
+{
+  "timestamp": "2025-05-25T23:07:21.229997",
+  "sync_results": {
+    "alpaca_count": 10,
+    "local_count": 10,
+    "synced": 10,
+    "discrepancies": [],
+    "new_positions": [],
+    "closed_positions": []
+  },
+  "recommendations": {
+    "urgent": [],
+    "high": [],
+    "medium": [
+      {
+        "symbol": "AAVE/USD",
+        "action": {
+          "_value_": "reduce",
+          "_name_": "REDUCE",
+          "__objclass__": "{'_generate_next_value_': <function Enum._generate_next_value_ at 0x7f55d460b4c0>, '__module__': 'trading.recommendations', '_new_member_': <built-in method __new__ of type object at 0x56045ea75800>, '_use_args_': False, '_member_names_': ['HOLD', 'CLOSE', 'REDUCE', 'ADD', 'REBALANCE', 'SET_STOP_LOSS', 'SET_TAKE_PROFIT'], '_member_map_': {'HOLD': <ActionType.HOLD: 'hold'>, 'CLOSE': <ActionType.CLOSE: 'close'>, 'REDUCE': <ActionType.REDUCE: 'reduce'>, 'ADD': <ActionType.ADD: 'add'>, 'REBALANCE': <ActionType.REBALANCE: 'rebalance'>, 'SET_STOP_LOSS': <ActionType.SET_STOP_LOSS: 'set_stop_loss'>, 'SET_TAKE_PROFIT': <ActionType.SET_TAKE_PROFIT: 'set_take_profit'>}, '_value2member_map_': {'hold': <ActionType.HOLD: 'hold'>, 'close': <ActionType.CLOSE: 'close'>, 'reduce': <ActionType.REDUCE: 'reduce'>, 'add': <ActionType.ADD: 'add'>, 'rebalance': <ActionType.REBALANCE: 'rebalance'>, 'set_stop_loss': <ActionType.SET_STOP_LOSS: 'set_stop_loss'>, 'set_take_profit': <ActionType.SET_TAKE_PROFIT: 'set_take_profit'>}, '_unhashable_values_': [], '_member_type_': <class 'object'>, '_value_repr_': None, '__doc__': None, 'HOLD': <ActionType.HOLD: 'hold'>, 'CLOSE': <ActionType.CLOSE: 'close'>, 'REDUCE': <ActionType.REDUCE: 'reduce'>, 'ADD': <ActionType.ADD: 'add'>, 'REBALANCE': <ActionType.REBALANCE: 'rebalance'>, 'SET_STOP_LOSS': <ActionType.SET_STOP_LOSS: 'set_stop_loss'>, 'SET_TAKE_PROFIT': <ActionType.SET_TAKE_PROFIT: 'set_take_profit'>, '__new__': <function Enum.__new__ at 0x7f55d460b380>}",
+          "_sort_order_": 2
+        },
+        "priority": {
+          "_value_": 2,
+          "_name_": "MEDIUM",
+          "__objclass__": "{'_generate_next_value_': <function Enum._generate_next_value_ at 0x7f55d460b4c0>, '__module__': 'trading.recommendations', '_new_member_': <built-in method __new__ of type object at 0x56045ea75800>, '_use_args_': False, '_member_names_': ['LOW', 'MEDIUM', 'HIGH', 'URGENT'], '_member_map_': {'LOW': <Priority.LOW: 1>, 'MEDIUM': <Priority.MEDIUM: 2>, 'HIGH': <Priority.HIGH: 3>, 'URGENT': <Priority.URGENT: 4>}, '_value2member_map_': {1: <Priority.LOW: 1>, 2: <Priority.MEDIUM: 2>, 3: <Priority.HIGH: 3>, 4: <Priority.URGENT: 4>}, '_unhashable_values_': [], '_member_type_': <class 'object'>, '_value_repr_': None, '__doc__': None, 'LOW': <Priority.LOW: 1>, 'MEDIUM': <Priority.MEDIUM: 2>, 'HIGH': <Priority.HIGH: 3>, 'URGENT': <Priority.URGENT: 4>, '__new__': <function Enum.__new__ at 0x7f55d460b380>}",
+          "_sort_order_": 1
+        },
+        "confidence": 0.6,
+        "reason": "Over-concentrated position (100.0% of portfolio) - consider reducing",
+        "current_price": 0,
+        "target_price": null,
+        "suggested_quantity": null,
+        "risk_reward_ratio": null,
+        "expected_return": null,
+        "max_loss": null,
+        "timeframe": "medium_term"
+      },
+      {
+        "symbol": "ETH/USD",
+        "action": {
+          "_value_": "reduce",
+          "_name_": "REDUCE",
+          "__objclass__": "{'_generate_next_value_': <function Enum._generate_next_value_ at 0x7f55d460b4c0>, '__module__': 'trading.recommendations', '_new_member_': <built-in method __new__ of type object at 0x56045ea75800>, '_use_args_': False, '_member_names_': ['HOLD', 'CLOSE', 'REDUCE', 'ADD', 'REBALANCE', 'SET_STOP_LOSS', 'SET_TAKE_PROFIT'], '_member_map_': {'HOLD': <ActionType.HOLD: 'hold'>, 'CLOSE': <ActionType.CLOSE: 'close'>, 'REDUCE': <ActionType.REDUCE: 'reduce'>, 'ADD': <ActionType.ADD: 'add'>, 'REBALANCE': <ActionType.REBALANCE: 'rebalance'>, 'SET_STOP_LOSS': <ActionType.SET_STOP_LOSS: 'set_stop_loss'>, 'SET_TAKE_PROFIT': <ActionType.SET_TAKE_PROFIT: 'set_take_profit'>}, '_value2member_map_': {'hold': <ActionType.HOLD: 'hold'>, 'close': <ActionType.CLOSE: 'close'>, 'reduce': <ActionType.REDUCE: 'reduce'>, 'add': <ActionType.ADD: 'add'>, 'rebalance': <ActionType.REBALANCE: 'rebalance'>, 'set_stop_loss': <ActionType.SET_STOP_LOSS: 'set_stop_loss'>, 'set_take_profit': <ActionType.SET_TAKE_PROFIT: 'set_take_profit'>}, '_unhashable_values_': [], '_member_type_': <class 'object'>, '_value_repr_': None, '__doc__': None, 'HOLD': <ActionType.HOLD: 'hold'>, 'CLOSE': <ActionType.CLOSE: 'close'>, 'REDUCE': <ActionType.REDUCE: 'reduce'>, 'ADD': <ActionType.ADD: 'add'>, 'REBALANCE': <ActionType.REBALANCE: 'rebalance'>, 'SET_STOP_LOSS': <ActionType.SET_STOP_LOSS: 'set_stop_loss'>, 'SET_TAKE_PROFIT': <ActionType.SET_TAKE_PROFIT: 'set_take_profit'>, '__new__': <function Enum.__new__ at 0x7f55d460b380>}",
+          "_sort_order_": 2
+        },
+        "priority": {
+          "_value_": 2,
+          "_name_": "MEDIUM",
+          "__objclass__": "{'_generate_next_value_': <function Enum._generate_next_value_ at 0x7f55d460b4c0>, '__module__': 'trading.recommendations', '_new_member_': <built-in method __new__ of type object at 0x56045ea75800>, '_use_args_': False, '_member_names_': ['LOW', 'MEDIUM', 'HIGH', 'URGENT'], '_member_map_': {'LOW': <Priority.LOW: 1>, 'MEDIUM': <Priority.MEDIUM: 2>, 'HIGH': <Priority.HIGH: 3>, 'URGENT': <Priority.URGENT: 4>}, '_value2member_map_': {1: <Priority.LOW: 1>, 2: <Priority.MEDIUM: 2>, 3: <Priority.HIGH: 3>, 4: <Priority.URGENT: 4>}, '_unhashable_values_': [], '_member_type_': <class 'object'>, '_value_repr_': None, '__doc__': None, 'LOW': <Priority.LOW: 1>, 'MEDIUM': <Priority.MEDIUM: 2>, 'HIGH': <Priority.HIGH: 3>, 'URGENT': <Priority.URGENT: 4>, '__new__': <function Enum.__new__ at 0x7f55d460b380>}",
+          "_sort_order_": 1
+        },
+        "confidence": 0.6,
+        "reason": "Over-concentrated position (42.3% of portfolio) - consider reducing",
+        "current_price": 0,
+        "target_price": null,
+        "suggested_quantity": null,
+        "risk_reward_ratio": null,
+        "expected_return": null,
+        "max_loss": null,
+        "timeframe": "medium_term"
+      }
+    ],
+    "low": [],
+    "portfolio_summary": {
+      "total_positions": 10,
+      "total_market_value": 93584.03712931041,
+      "total_unrealized_pnl": 93584.03712931041,
+      "total_cost_basis": 0.0,
+      "average_return_pct": 9358403.71293104,
+      "risk_distribution": {
+        "low": 10,
+        "medium": 0,
+        "high": 0,
+        "critical": 0
+      },
+      "positions_by_performance": {
+        "profitable": 10,
+        "losing": 0
+      },
+      "positions_needing_attention": [],
+      "top_performers": [
+        {
+          "symbol": "AAVE/USD",
+          "return_pct": 0,
+          "unrealized_pnl": 31407.885455347438
+        },
+        {
+          "symbol": "BTC/USD",
+          "return_pct": 0,
+          "unrealized_pnl": 2067.11266617424
+        },
+        {
+          "symbol": "DOGE/USD",
+          "return_pct": 0,
+          "unrealized_pnl": 5097.8452431495
+        }
+      ],
+      "worst_performers": [
+        {
+          "symbol": "SUSHI/USD",
+          "return_pct": 0,
+          "unrealized_pnl": 227.7410006515
+        },
+        {
+          "symbol": "XRP/USD",
+          "return_pct": 0,
+          "unrealized_pnl": 239.11477945620828
+        },
+        {
+          "symbol": "YFI/USD",
+          "return_pct": 0,
+          "unrealized_pnl": 10639.007959327737
+        }
+      ],
+      "portfolio_concentration": {
+        "AAVE/USD": 100.0,
+        "BTC/USD": 6.175094196182363,
+        "DOGE/USD": 13.216151049467642,
+        "DOT/USD": 17.91990869100789,
+        "ETH/USD": 42.25633552541438,
+        "LINK/USD": 0.2926557681355295,
+        "LTC/USD": 1.0368982622407183,
+        "SUSHI/USD": 0.2753624119021729,
+        "XRP/USD": 0.2882810240095045,
+        "YFI/USD": 11.368400301674539
+      },
+      "average_hold_time": 0.0
+    },
+    "generated_at": "2025-05-25T23:07:21.722551"
+  },
+  "performance_snapshot": {
+    "date": "2025-05-25",
+    "timestamp": "2025-05-25T23:07:23.487271",
+    "portfolio_value": 93584.03712931041,
+    "unrealized_pnl": 93584.03712931041,
+    "total_positions": 10,
+    "avg_return_pct": 9358403.71293104,
+    "risk_distribution": {
+      "low": 10,
+      "medium": 0,
+      "high": 0,
+      "critical": 0
+    },
+    "top_performer": {
+      "symbol": "AAVE/USD",
+      "return_pct": 0,
+      "unrealized_pnl": 31407.885455347438
+    },
+    "worst_performer": {
+      "symbol": "SUSHI/USD",
+      "return_pct": 0,
+      "unrealized_pnl": 227.7410006515
+    }
+  },
+  "performance_report": {
+    "error": "Performance report generation failed: '>' not supported between instances of 'list' and 'int'"
+  },
+  "actions_taken": [],
+  "summary": {
+    "positions_synced": 10,
+    "new_positions": 0,
+    "discrepancies": 0,
+    "total_recommendations": 2,
+    "urgent_actions_needed": 0,
+    "portfolio_value": 93584.03712931041,
+    "unrealized_pnl": 93584.03712931041,
+    "total_positions": 10,
+    "analysis_status": "completed",
+    "key_messages": [
+      "Portfolio has unrealized gains: $93584.04"
+    ]
+  }
+}

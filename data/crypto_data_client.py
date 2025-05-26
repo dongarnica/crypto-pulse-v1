@@ -7,6 +7,7 @@ import asyncio
 import pytz
 import pandas as pd
 import numpy as np
+import random
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from typing import Dict, Optional, Union, List
@@ -28,6 +29,12 @@ class CryptoMarketDataClient:
         self.logger.info("Crypto market data client initialized")
         self.logger.debug(f"Using timezone: {self.mountain_tz}")
         
+        # Rate limiting configuration
+        self.min_request_interval = 1.2  # Minimum seconds between requests (CoinGecko allows 1 req/sec)
+        self.last_request_time = 0
+        self.max_retries = 3
+        self.retry_backoff_factor = 2
+        
         # Initialize positions tracking
         self.positions_file = os.path.join(os.path.dirname(__file__), 'positions.json')
         self.positions = self._load_positions()
@@ -45,6 +52,86 @@ class CryptoMarketDataClient:
         
         # Return empty positions structure
         return {}
+    
+    def _save_positions(self):
+        """Save current positions to file"""
+        try:
+            with open(self.positions_file, 'w') as f:
+                json.dump(self.positions, f, indent=2, default=str)
+            self.logger.debug("Positions saved to file")
+        except Exception as e:
+            self.logger.error(f"Error saving positions: {e}")
+    
+    def _enforce_rate_limit(self):
+        """Enforce rate limiting between API requests"""
+        current_time = time.time()
+        time_since_last_request = current_time - self.last_request_time
+        
+        if time_since_last_request < self.min_request_interval:
+            sleep_time = self.min_request_interval - time_since_last_request
+            self.logger.debug(f"Rate limiting: sleeping for {sleep_time:.2f} seconds")
+            time.sleep(sleep_time)
+        
+        self.last_request_time = time.time()
+    
+    def _safe_api_request(self, endpoint: str, params: Dict, description: str = "API request") -> Optional[requests.Response]:
+        """
+        Make a safe API request with rate limiting and exponential backoff retry logic
+        
+        Args:
+            endpoint: API endpoint path
+            params: Request parameters
+            description: Description for logging
+            
+        Returns:
+            Response object or None if all retries failed
+        """
+        url = f"{self.BASE_URL}{endpoint}"
+        
+        for attempt in range(self.max_retries + 1):
+            try:
+                # Enforce rate limiting
+                self._enforce_rate_limit()
+                
+                self.logger.debug(f"Attempt {attempt + 1} for {description} - {url} with params: {params}")
+                
+                response = requests.get(url, params=params, timeout=10)
+                
+                # Handle rate limiting specifically
+                if response.status_code == 429:
+                    retry_after = int(response.headers.get('Retry-After', 60))
+                    jitter = random.uniform(0.1, 0.5)  # Add jitter to avoid thundering herd
+                    wait_time = min(retry_after + jitter, 300)  # Cap at 5 minutes
+                    
+                    self.logger.warning(f"Rate limited (429) for {description}. Waiting {wait_time:.1f}s before retry {attempt + 1}/{self.max_retries}")
+                    
+                    if attempt < self.max_retries:
+                        time.sleep(wait_time)
+                        continue
+                    else:
+                        self.logger.error(f"Rate limit exceeded for {description} after {self.max_retries} retries")
+                        return None
+                
+                # Check for other HTTP errors
+                response.raise_for_status()
+                return response
+                
+            except requests.exceptions.RequestException as e:
+                wait_time = (self.retry_backoff_factor ** attempt) + random.uniform(0.1, 0.5)
+                
+                if attempt < self.max_retries:
+                    self.logger.warning(f"Request error for {description} (attempt {attempt + 1}): {e}. Retrying in {wait_time:.1f}s")
+                    time.sleep(wait_time)
+                else:
+                    self.logger.error(f"Request failed for {description} after {self.max_retries} retries: {e}")
+                    return None
+            except Exception as e:
+                self.logger.error(f"Unexpected error for {description} (attempt {attempt + 1}): {e}")
+                if attempt >= self.max_retries:
+                    return None
+                time.sleep(1)
+        
+        return None
     
     def _save_positions(self):
         """Save current positions to file"""
@@ -266,7 +353,7 @@ class CryptoMarketDataClient:
 
     def get_realtime_price(self, symbol: str) -> Optional[Dict]:
         """
-        Get real-time price data for a cryptocurrency pair.
+        Get real-time price data for a cryptocurrency pair with rate limiting and retry logic.
         
         Args:
             symbol: Trading pair in format like BTC/USD
@@ -288,12 +375,16 @@ class CryptoMarketDataClient:
         }
         
         start_time = time.time()
+        
+        # Use safe API request with rate limiting and retries
+        response = self._safe_api_request(endpoint, params, f"real-time price for {symbol}")
+        
+        if response is None:
+            elapsed_time = time.time() - start_time
+            self.logger.error(f"Failed to fetch real-time data for {symbol} after {elapsed_time:.2f}s")
+            return None
+        
         try:
-            self.logger.debug(f"Making API request to {self.BASE_URL}{endpoint} with params: {params}")
-            
-            response = requests.get(f"{self.BASE_URL}{endpoint}", params=params, timeout=10)
-            response.raise_for_status()
-            
             data = response.json()
             elapsed_time = time.time() - start_time
             
@@ -322,13 +413,9 @@ class CryptoMarketDataClient:
             self.logger.info(f"Successfully fetched real-time data for {symbol} in {elapsed_time:.3f}s")
             return result
             
-        except requests.exceptions.RequestException as e:
-            elapsed_time = time.time() - start_time
-            self.logger.error(f"Request error fetching real-time data for {symbol} after {elapsed_time:.2f}s: {e}")
-            return None
         except Exception as e:
             elapsed_time = time.time() - start_time
-            self.logger.error(f"Error fetching real-time data for {symbol} after {elapsed_time:.2f}s: {e}")
+            self.logger.error(f"Error parsing real-time data for {symbol} after {elapsed_time:.2f}s: {e}")
             return None
 
     async def get_realtime_websocket(self, symbols: list, callback: callable):
@@ -346,7 +433,7 @@ class CryptoMarketDataClient:
 
     def get_historical_data(self, symbol: str, days: int = 1) -> Optional[Dict]:
         """
-        Get historical price data for a cryptocurrency pair.
+        Get historical price data for a cryptocurrency pair with rate limiting and retry logic.
         
         Args:
             symbol: Trading pair in format like BTC/USD
@@ -365,12 +452,16 @@ class CryptoMarketDataClient:
         }
         
         start_time = time.time()
+        
+        # Use safe API request with rate limiting and retries
+        response = self._safe_api_request(endpoint, params, f"historical data for {symbol}")
+        
+        if response is None:
+            elapsed_time = time.time() - start_time
+            self.logger.error(f"Failed to fetch historical data for {symbol} after {elapsed_time:.2f}s")
+            return None
+        
         try:
-            self.logger.debug(f"Making historical data request to {self.BASE_URL}{endpoint} with params: {params}")
-            
-            response = requests.get(f"{self.BASE_URL}{endpoint}", params=params, timeout=30)
-            response.raise_for_status()
-            
             data = response.json()
             elapsed_time = time.time() - start_time
             
@@ -398,13 +489,9 @@ class CryptoMarketDataClient:
             self.logger.info(f"Successfully fetched {len(prices)} historical data points for {symbol} in {elapsed_time:.3f}s")
             return result
             
-        except requests.exceptions.RequestException as e:
-            elapsed_time = time.time() - start_time
-            self.logger.error(f"Request error fetching historical data for {symbol} after {elapsed_time:.2f}s: {e}")
-            return None
         except Exception as e:
             elapsed_time = time.time() - start_time
-            self.logger.error(f"Error fetching historical data for {symbol} after {elapsed_time:.2f}s: {e}")
+            self.logger.error(f"Error parsing historical data for {symbol} after {elapsed_time:.2f}s: {e}")
             return None
 
     def format_historical_summary(self, historical_data: Dict, symbol: str) -> str:

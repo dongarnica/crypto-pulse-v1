@@ -70,6 +70,7 @@ class CryptoTradingBotApp:
         # Initialize core components
         self.trading_controller = None
         self.signal_generator = None
+        self.signal_generators = {}  # Dictionary to hold multiple signal generators
         self.data_client = None
         self.alpaca_client = None
         self.llm_client = None
@@ -114,9 +115,26 @@ class CryptoTradingBotApp:
                     self.trading_controller = TradingController(self.config)
                     self.logger.info("✓ Trading controller initialized")
                 
-                # Initialize LSTM signal generator
-                self.signal_generator = AggressiveCryptoSignalGenerator(ticker=self.config.ticker_slash)
-                self.logger.info("✓ LSTM signal generator initialized")
+                # Initialize LSTM signal generators for active tickers
+                active_tickers = self.config.get_active_tickers()
+                self.logger.info(f"Initializing signal generators for {len(active_tickers)} tickers: {active_tickers}")
+                
+                for ticker in active_tickers:
+                    try:
+                        generator = AggressiveCryptoSignalGenerator(ticker=ticker)
+                        self.signal_generators[ticker] = generator
+                        self.logger.info(f"✓ Signal generator initialized for {ticker}")
+                    except Exception as e:
+                        self.logger.error(f"❌ Failed to initialize signal generator for {ticker}: {e}")
+                
+                # Set primary signal generator (backward compatibility)
+                if self.config.ticker_slash in self.signal_generators:
+                    self.signal_generator = self.signal_generators[self.config.ticker_slash]
+                elif self.signal_generators:
+                    self.signal_generator = list(self.signal_generators.values())[0]
+                    self.logger.info(f"✓ Primary signal generator set to {list(self.signal_generators.keys())[0]}")
+                else:
+                    self.logger.warning("⚠️ No signal generators successfully initialized")
                 
                 # Initialize LLM client
                 llm_config = self.config.get_llm_config()
@@ -151,6 +169,14 @@ class CryptoTradingBotApp:
                 print("🚀 CRYPTO TRADING BOT - LIVE DASHBOARD")
                 print("=" * 80)
                 print(f"📅 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                
+                # Display active tickers info
+                active_tickers = self.config.get_active_tickers()
+                if self.config.multi_ticker_params['enable_multi_ticker']:
+                    print(f"📊 Multi-Ticker Mode: {len(active_tickers)} active tickers")
+                    print(f"🎯 Active: {', '.join(active_tickers[:5])}" + ("..." if len(active_tickers) > 5 else ""))
+                else:
+                    print(f"📊 Single-Ticker Mode: {self.config.ticker_slash}")
                 print()
                 
                 # Get portfolio dashboard
@@ -186,19 +212,40 @@ class CryptoTradingBotApp:
         try:
             while self.running and datetime.now() < end_time:
                 
-                # Generate trading signal
-                signal_data = self._generate_trading_signal()
-                
-                if signal_data:
-                    self.logger.info(f"Generated signal: {signal_data}")
+                # Check if multi-ticker mode is enabled
+                if self.config.multi_ticker_params['enable_multi_ticker']:
+                    # Generate signals for all active tickers
+                    signals = self._generate_multi_ticker_signals()
                     
-                    # Process signal with LLM if available
-                    if self.llm_client:
-                        enhanced_signal = self._enhance_signal_with_llm(signal_data)
-                        signal_data.update(enhanced_signal)
+                    if signals:
+                        self.logger.info(f"Generated {len(signals)} signals across multiple tickers")
+                        
+                        # Process signals with LLM if available
+                        enhanced_signals = []
+                        for signal_data in signals:
+                            if self.llm_client:
+                                enhanced_signal = self._enhance_signal_with_llm(signal_data)
+                                signal_data.update(enhanced_signal)
+                            enhanced_signals.append(signal_data)
+                        
+                        # Execute trades with portfolio management
+                        self._execute_multi_ticker_trades(enhanced_signals)
+                    else:
+                        self.logger.info("No signals generated for any active tickers")
+                else:
+                    # Single ticker mode (backward compatibility)
+                    signal_data = self._generate_trading_signal()
                     
-                    # Execute trade if conditions are met
-                    self._execute_trade_signal(signal_data)
+                    if signal_data:
+                        self.logger.info(f"Generated signal: {signal_data}")
+                        
+                        # Process signal with LLM if available
+                        if self.llm_client:
+                            enhanced_signal = self._enhance_signal_with_llm(signal_data)
+                            signal_data.update(enhanced_signal)
+                        
+                        # Execute trade if conditions are met
+                        self._execute_trade_signal(signal_data)
                 
                 # Run daily analysis
                 if datetime.now().hour == 0 and datetime.now().minute < 5:
@@ -283,14 +330,20 @@ class CryptoTradingBotApp:
         try:
             while self.running and datetime.now() < end_time:
                 
-                # Collect current market data
-                market_data = self._collect_market_data()
+                # Collect market data for all active tickers
+                active_tickers = self.config.get_active_tickers()
+                all_market_data = []
                 
-                if market_data:
-                    self.logger.info(f"Collected market data: {len(market_data)} data points")
+                for ticker in active_tickers:
+                    market_data = self._collect_market_data_for_ticker(ticker)
+                    if market_data:
+                        all_market_data.append(market_data)
+                
+                if all_market_data:
+                    self.logger.info(f"Collected market data for {len(all_market_data)} tickers")
                     
                     # Save to database/file
-                    self._save_market_data(market_data)
+                    self._save_market_data(all_market_data)
                 
                 # Wait 5 minutes before next collection
                 for i in range(300):
@@ -501,13 +554,13 @@ class CryptoTradingBotApp:
         except Exception as e:
             self.logger.error(f"Trade execution error: {str(e)}")
     
-    def _collect_market_data(self) -> Optional[Dict]:
-        """Collect current market data."""
+    def _collect_market_data_for_ticker(self, ticker: str) -> Optional[Dict]:
+        """Collect current market data for a specific ticker."""
         
         try:
             # Get current price data
             current_bars = self.data_client.get_historical_bars(
-                self.config.ticker_slash, 
+                ticker, 
                 hours=1
             )
             
@@ -515,7 +568,7 @@ class CryptoTradingBotApp:
                 latest = current_bars.iloc[-1]
                 
                 return {
-                    'symbol': self.config.ticker_slash,
+                    'symbol': ticker,
                     'timestamp': datetime.now().isoformat(),
                     'open': float(latest['open']),
                     'high': float(latest['high']),
@@ -527,11 +580,15 @@ class CryptoTradingBotApp:
             return None
             
         except Exception as e:
-            self.logger.error(f"Market data collection error: {str(e)}")
+            self.logger.error(f"Market data collection error for {ticker}: {str(e)}")
             return None
     
-    def _save_market_data(self, market_data: Dict):
-        """Save market data to storage."""
+    def _collect_market_data(self) -> Optional[Dict]:
+        """Collect current market data for primary ticker (backward compatibility)."""
+        return self._collect_market_data_for_ticker(self.config.ticker_slash)
+    
+    def _save_market_data(self, market_data):
+        """Save market data to storage. Handles both single Dict and List[Dict]."""
         
         try:
             data_dir = os.path.join(os.path.dirname(__file__), 'data', 'market_data')
@@ -548,8 +605,11 @@ class CryptoTradingBotApp:
                 except:
                     all_data = []
             
-            # Add new data
-            all_data.append(market_data)
+            # Add new data (handle both single dict and list of dicts)
+            if isinstance(market_data, list):
+                all_data.extend(market_data)
+            else:
+                all_data.append(market_data)
             
             # Keep only last 10000 records
             if len(all_data) > 10000:
@@ -557,7 +617,7 @@ class CryptoTradingBotApp:
             
             # Save back to file
             with open(filename, 'w') as f:
-                json.dump(all_data, f, indent=2)
+                json.dump(all_data, f, indent=2, cls=self.CustomJSONEncoder)
                 
         except Exception as e:
             self.logger.error(f"Market data save error: {str(e)}")
@@ -716,16 +776,27 @@ class CryptoTradingBotApp:
         
         print(f"Initial Balance: ${results.get('initial_balance', 0):,.2f}")
         print(f"Final Balance: ${results.get('final_balance', 0):,.2f}")
-        print(f"Total Return: {results.get('total_return_pct', 0):.2f}%")
-        print(f"Total Trades: {results.get('total_trades', 0)}")
+        print(f"Total Return: {results.get('total_return', 0)*100:.2f}%")
+        print(f"Total Trades: {results.get('num_trades', 0)}")
         print(f"Winning Trades: {results.get('winning_trades', 0)}")
         print(f"Losing Trades: {results.get('losing_trades', 0)}")
-        print(f"Win Rate: {results.get('win_rate', 0):.2f}%")
-        print(f"Max Drawdown: {results.get('max_drawdown', 0):.2f}%")
+        print(f"Win Rate: {results.get('win_rate', 0)*100:.2f}%")
+        print(f"Max Drawdown: {results.get('max_drawdown', 0)*100:.2f}%")
         print(f"Sharpe Ratio: {results.get('sharpe_ratio', 0):.2f}")
     
     def _save_analysis_reports(self, analysis_results: Dict, performance_report: Dict):
         """Save analysis reports to files."""
+        
+        def json_serializer(obj):
+            """Custom JSON serializer for non-serializable objects."""
+            if hasattr(obj, '__dict__'):
+                return obj.__dict__
+            elif hasattr(obj, 'to_dict'):
+                return obj.to_dict()
+            elif isinstance(obj, datetime):
+                return obj.isoformat()
+            else:
+                return str(obj)
         
         try:
             reports_dir = os.path.join(os.path.dirname(__file__), 'reports')
@@ -736,17 +807,21 @@ class CryptoTradingBotApp:
             # Save analysis results
             analysis_file = os.path.join(reports_dir, f'analysis_{timestamp}.json')
             with open(analysis_file, 'w') as f:
-                json.dump(analysis_results, f, indent=2)
+                json.dump(analysis_results, f, indent=2, default=json_serializer)
             
             # Save performance report
             performance_file = os.path.join(reports_dir, f'performance_{timestamp}.json')
             with open(performance_file, 'w') as f:
-                json.dump(performance_report, f, indent=2)
+                json.dump(performance_report, f, indent=2, default=json_serializer)
             
             self.logger.info(f"Reports saved: {analysis_file}, {performance_file}")
+            print(f"📄 Reports saved to:")
+            print(f"   📊 Analysis: {analysis_file}")
+            print(f"   📈 Performance: {performance_file}")
             
         except Exception as e:
             self.logger.error(f"Failed to save reports: {str(e)}")
+            print(f"❌ Failed to save reports: {str(e)}")
     
     def _process_daily_analysis(self, analysis_results: Dict):
         """Process daily analysis results."""
@@ -768,6 +843,94 @@ class CryptoTradingBotApp:
                 
         except Exception as e:
             self.logger.error(f"Daily analysis processing error: {str(e)}")
+    
+    def _generate_multi_ticker_signals(self) -> List[Dict]:
+        """Generate trading signals for all active tickers."""
+        
+        signals = []
+        active_tickers = self.config.get_active_tickers()
+        
+        self.logger.info(f"Generating signals for {len(active_tickers)} tickers")
+        
+        for ticker in active_tickers:
+            if ticker not in self.signal_generators:
+                self.logger.warning(f"No signal generator found for {ticker}")
+                continue
+                
+            try:
+                signal_result = self.signal_generators[ticker].generate_aggressive_signals(
+                    hours=self.config.lookback,
+                    retrain_threshold=6
+                )
+                
+                if 'error' in signal_result:
+                    self.logger.warning(f"Signal generation error for {ticker}: {signal_result['error']}")
+                    continue
+                
+                if signal_result and signal_result.get('signal') != 0:
+                    signal_data = {
+                        'symbol': ticker,
+                        'signal': 'BUY' if signal_result['signal'] > 0 else 'SELL',
+                        'confidence': signal_result['confidence'],
+                        'current_price': signal_result['current_price'],
+                        'predicted_price': signal_result.get('predicted_price', signal_result['current_price']),
+                        'timestamp': signal_result['timestamp'],
+                        'indicators': {
+                            'momentum_score': signal_result.get('momentum_score', 0),
+                            'volatility_breakout': signal_result.get('volatility_breakout', False),
+                            'volume_surge': signal_result.get('volume_surge', 1.0),
+                            'rsi_fast': signal_result.get('rsi_fast', 50),
+                            'risk_multiplier': signal_result.get('risk_multiplier', 1.0)
+                        },
+                        'trade_recommendation': signal_result.get('trade_recommendation', {})
+                    }
+                    signals.append(signal_data)
+                    self.logger.info(f"Generated {signal_data['signal']} signal for {ticker} with confidence {signal_data['confidence']:.2f}")
+                    
+            except Exception as e:
+                self.logger.error(f"Error generating signal for {ticker}: {str(e)}")
+        
+        return signals
+    
+    def _execute_multi_ticker_trades(self, signals: List[Dict]):
+        """Execute trades for multiple ticker signals with portfolio management."""
+        
+        if not signals:
+            self.logger.info("No signals to execute")
+            return
+        
+        # Sort signals by confidence (highest first)
+        sorted_signals = sorted(signals, key=lambda x: x['confidence'], reverse=True)
+        
+        # Get current portfolio allocation
+        if self.trading_controller:
+            try:
+                portfolio_status = self.trading_controller.get_portfolio_dashboard()
+                current_positions = portfolio_status.get('portfolio_overview', {}).get('total_positions', 0)
+                max_positions = self.config.risk_params['max_positions']
+                
+                self.logger.info(f"Current positions: {current_positions}, Max allowed: {max_positions}")
+                
+                # Calculate available position slots
+                available_slots = max_positions - current_positions
+                
+                # Execute top signals within portfolio limits
+                executed_count = 0
+                for signal in sorted_signals:
+                    if executed_count >= available_slots:
+                        self.logger.info(f"Portfolio limit reached, skipping remaining signals")
+                        break
+                    
+                    if signal['confidence'] >= 0.7:  # Only execute high-confidence signals
+                        self._execute_trade_signal(signal)
+                        executed_count += 1
+                    else:
+                        self.logger.info(f"Signal confidence too low for {signal['symbol']}: {signal['confidence']:.2f}")
+                        
+            except Exception as e:
+                self.logger.error(f"Error executing multi-ticker trades: {str(e)}")
+        else:
+            self.logger.warning("No trading controller available for trade execution")
 
 
 def main():
@@ -798,6 +961,26 @@ Examples:
         '--ticker',
         default='BTC',
         help='Crypto ticker symbol (default: BTC)'
+    )
+    
+    parser.add_argument(
+        '--multi-ticker',
+        action='store_true',
+        help='Enable multi-ticker trading mode'
+    )
+    
+    parser.add_argument(
+        '--max-tickers',
+        type=int,
+        default=3,
+        help='Maximum number of active tickers in multi-ticker mode (default: 3)'
+    )
+    
+    parser.add_argument(
+        '--ticker-allocation',
+        type=float,
+        default=0.33,
+        help='Portfolio allocation per ticker in multi-ticker mode (default: 0.33)'
     )
     
     parser.add_argument(
@@ -841,12 +1024,25 @@ Examples:
         config = AppConfig(ticker=args.ticker)
         if args.debug:
             config.log_level = "DEBUG"
+            
+        # Configure multi-ticker settings if enabled
+        if args.multi_ticker:
+            config.multi_ticker_enabled = True
+            config.max_active_tickers = args.max_tickers
+            config.ticker_allocation = args.ticker_allocation
+            print(f"🔀 Multi-ticker mode enabled")
+            print(f"📊 Max tickers: {args.max_tickers}")
+            print(f"💰 Per-ticker allocation: {args.ticker_allocation:.2%}")
         
         # Initialize application
         app = CryptoTradingBotApp(config)
         
         print(f"🚀 Starting Crypto Trading Bot in {args.mode.upper()} mode")
-        print(f"📊 Ticker: {args.ticker}")
+        if args.multi_ticker:
+            active_tickers = config.get_active_tickers()
+            print(f"📊 Active tickers: {', '.join(active_tickers[:args.max_tickers])}")
+        else:
+            print(f"📊 Ticker: {args.ticker}")
         
         # Initialize components
         if not app.initialize_components():

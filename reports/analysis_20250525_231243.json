@@ -1,0 +1,176 @@
+{
+  "timestamp": "2025-05-25T23:12:40.204567",
+  "sync_results": {
+    "alpaca_count": 10,
+    "local_count": 10,
+    "synced": 10,
+    "discrepancies": [],
+    "new_positions": [],
+    "closed_positions": []
+  },
+  "recommendations": {
+    "urgent": [],
+    "high": [],
+    "medium": [],
+    "low": [],
+    "portfolio_summary": {
+      "total_positions": 10,
+      "total_market_value": 0.0,
+      "total_unrealized_pnl": 0.0,
+      "total_cost_basis": 0.0,
+      "average_return_pct": 0.0,
+      "risk_distribution": {
+        "low": 10,
+        "medium": 0,
+        "high": 0,
+        "critical": 0
+      },
+      "positions_by_performance": {
+        "profitable": 0,
+        "losing": 10
+      },
+      "positions_needing_attention": [],
+      "top_performers": [
+        {
+          "symbol": "AAVE/USD",
+          "return_pct": 0,
+          "unrealized_pnl": 0.0
+        },
+        {
+          "symbol": "BTC/USD",
+          "return_pct": 0,
+          "unrealized_pnl": 0.0
+        },
+        {
+          "symbol": "DOGE/USD",
+          "return_pct": 0,
+          "unrealized_pnl": 0.0
+        }
+      ],
+      "worst_performers": [
+        {
+          "symbol": "SUSHI/USD",
+          "return_pct": 0,
+          "unrealized_pnl": 0.0
+        },
+        {
+          "symbol": "XRP/USD",
+          "return_pct": 0,
+          "unrealized_pnl": 0.0
+        },
+        {
+          "symbol": "YFI/USD",
+          "return_pct": 0,
+          "unrealized_pnl": 0.0
+        }
+      ],
+      "portfolio_concentration": {
+        "AAVE/USD": 0.0,
+        "BTC/USD": 0.0,
+        "DOGE/USD": 0.0,
+        "DOT/USD": 0.0,
+        "ETH/USD": 0.0,
+        "LINK/USD": 0.0,
+        "LTC/USD": 0.0,
+        "SUSHI/USD": 0.0,
+        "XRP/USD": 0.0,
+        "YFI/USD": 0.0
+      },
+      "average_hold_time": 0.0
+    },
+    "generated_at": "2025-05-25T23:12:40.598167"
+  },
+  "performance_snapshot": {
+    "date": "2025-05-25",
+    "timestamp": "2025-05-25T23:12:42.301278",
+    "portfolio_value": 0.0,
+    "unrealized_pnl": 0.0,
+    "total_positions": 10,
+    "avg_return_pct": 0.0,
+    "risk_distribution": {
+      "low": 10,
+      "medium": 0,
+      "high": 0,
+      "critical": 0
+    },
+    "top_performer": {
+      "symbol": "AAVE/USD",
+      "return_pct": 0,
+      "unrealized_pnl": 0.0
+    },
+    "worst_performer": {
+      "symbol": "SUSHI/USD",
+      "return_pct": 0,
+      "unrealized_pnl": 0.0
+    }
+  },
+  "performance_report": {
+    "report_generated": "2025-05-25T23:12:43.011837",
+    "analysis_period_days": 30,
+    "performance_metrics": {
+      "total_return_pct": 0,
+      "annualized_return_pct": 0,
+      "sharpe_ratio": 0,
+      "max_drawdown_pct": 0,
+      "win_rate": 0,
+      "avg_win_pct": 0,
+      "avg_loss_pct": 0,
+      "profit_factor": 0,
+      "volatility": 0,
+      "calmar_ratio": 0
+    },
+    "trading_statistics": {
+      "total_trades": 0,
+      "profitable_trades": 0,
+      "losing_trades": 0,
+      "avg_hold_time_days": 0
+    },
+    "current_portfolio": {
+      "total_positions": 10,
+      "total_market_value": 0.0,
+      "total_unrealized_pnl": 0.0,
+      "average_return_pct": 0.0,
+      "risk_distribution": {
+        "low": 10,
+        "medium": 0,
+        "high": 0,
+        "critical": 0
+      },
+      "positions_needing_attention": 0
+    },
+    "performance_analysis": {
+      "overall_rating": "Poor",
+      "strengths": [
+        "Low drawdown"
+      ],
+      "weaknesses": [
+        "Negative returns",
+        "Poor risk-adjusted returns",
+        "Low win rate",
+        "Poor profit factor"
+      ],
+      "key_insights": [
+        "Need to improve win/loss ratio",
+        "Short-term trading strategy"
+      ]
+    },
+    "recommendations": [
+      "Consider improving trade selection criteria",
+      "Focus on risk management to improve risk-adjusted returns",
+      "Review trade exit strategies to improve profit factor"
+    ]
+  },
+  "actions_taken": [],
+  "summary": {
+    "positions_synced": 10,
+    "new_positions": 0,
+    "discrepancies": 0,
+    "total_recommendations": 0,
+    "urgent_actions_needed": 0,
+    "portfolio_value": 0.0,
+    "unrealized_pnl": 0.0,
+    "total_positions": 10,
+    "analysis_status": "completed",
+    "key_messages": []
+  }
+}

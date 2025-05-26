@@ -376,7 +376,7 @@ class PerformanceAnalytics:
         if metrics.profit_factor < 1.5:
             recommendations.append("Review trade exit strategies to improve profit factor")
         
-        if portfolio.get('positions_needing_attention', 0) > 3:
+        if len(portfolio.get('positions_needing_attention', [])) > 3:
             recommendations.append("Review and potentially close high-risk positions")
         
         risk_dist = portfolio.get('risk_distribution', {})

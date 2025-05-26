@@ -1,0 +1,56 @@
+{
+  "report_generated": "2025-05-25T23:12:43.644700",
+  "analysis_period_days": 30,
+  "performance_metrics": {
+    "total_return_pct": 0,
+    "annualized_return_pct": 0,
+    "sharpe_ratio": 0,
+    "max_drawdown_pct": 0,
+    "win_rate": 0,
+    "avg_win_pct": 0,
+    "avg_loss_pct": 0,
+    "profit_factor": 0,
+    "volatility": 0,
+    "calmar_ratio": 0
+  },
+  "trading_statistics": {
+    "total_trades": 0,
+    "profitable_trades": 0,
+    "losing_trades": 0,
+    "avg_hold_time_days": 0
+  },
+  "current_portfolio": {
+    "total_positions": 10,
+    "total_market_value": 0.0,
+    "total_unrealized_pnl": 0.0,
+    "average_return_pct": 0.0,
+    "risk_distribution": {
+      "low": 10,
+      "medium": 0,
+      "high": 0,
+      "critical": 0
+    },
+    "positions_needing_attention": 0
+  },
+  "performance_analysis": {
+    "overall_rating": "Poor",
+    "strengths": [
+      "Low drawdown"
+    ],
+    "weaknesses": [
+      "Negative returns",
+      "Poor risk-adjusted returns",
+      "Low win rate",
+      "Poor profit factor"
+    ],
+    "key_insights": [
+      "Need to improve win/loss ratio",
+      "Short-term trading strategy"
+    ]
+  },
+  "recommendations": [
+    "Consider improving trade selection criteria",
+    "Focus on risk management to improve risk-adjusted returns",
+    "Review trade exit strategies to improve profit factor"
+  ]
+}

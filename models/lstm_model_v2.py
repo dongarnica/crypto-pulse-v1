@@ -21,6 +21,7 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 from data.crypto_data_client import CryptoMarketDataClient
+from utils.safe_math import safe_div, safe_ratio, safe_percentage, safe_risk_reward_ratio, clean_numerical_data
 
 # Enable TensorFlow optimizations
 tf.config.experimental.enable_tensor_float_32_execution(True)  # Updated API call
@@ -121,9 +122,6 @@ class AggressiveCryptoSignalGenerator:
         print("⚡ Calculating aggressive technical features...")
         df = df.copy()
         
-        def safe_div(a, b, fill_val=0):
-            return np.where(b != 0, a / b, fill_val)
-        
         try:
             # Basic price features
             df['Price_Change'] = df['close'].pct_change()
@@ -146,7 +144,7 @@ class AggressiveCryptoSignalGenerator:
             bb_std_dev = df['close'].rolling(bb_period).std()
             bb_upper = bb_middle + (bb_std_dev * bb_std)
             bb_lower = bb_middle - (bb_std_dev * bb_std)
-            df['BB_Position'] = (df['close'] - bb_lower) / (bb_upper - bb_lower)
+            df['BB_Position'] = safe_div(df['close'] - bb_lower, bb_upper - bb_lower, 0.5)
             
             # ATR normalized
             high_low = df['high'] - df['low']
@@ -154,15 +152,15 @@ class AggressiveCryptoSignalGenerator:
             low_close = np.abs(df['low'] - df['close'].shift())
             tr = np.maximum(high_low, np.maximum(high_close, low_close))
             atr = tr.rolling(10).mean()
-            df['ATR_Normalized'] = atr / df['close']
+            df['ATR_Normalized'] = safe_div(atr, df['close'], 0.01)
             
             # Volume features
             vol_sma = df['volume'].rolling(20).mean()
             df['Volume_Surge'] = safe_div(df['volume'], vol_sma, 1.0)
             
             # Momentum features
-            momentum_3 = df['close'] / df['close'].shift(3) - 1
-            momentum_7 = df['close'] / df['close'].shift(7) - 1
+            momentum_3 = safe_div(df['close'], df['close'].shift(3), 1.0) - 1
+            momentum_7 = safe_div(df['close'], df['close'].shift(7), 1.0) - 1
             df['Momentum_Score'] = (momentum_3 * 0.7) + (momentum_7 * 0.3)
             
             # Volatility breakout
@@ -179,8 +177,9 @@ class AggressiveCryptoSignalGenerator:
             
             # Additional indicators
             df['Stoch_RSI_Fast'] = df['RSI_Fast']  # Simplified
-            df['Williams_R'] = ((df['high'].rolling(14).max() - df['close']) / 
-                               (df['high'].rolling(14).max() - df['low'].rolling(14).min())) * -100
+            high_14_max = df['high'].rolling(14).max()
+            low_14_min = df['low'].rolling(14).min()
+            df['Williams_R'] = safe_div(high_14_max - df['close'], high_14_max - low_14_min, 0.5) * -100
             
             df['CCI'] = 0  # Placeholder
             df['MFI'] = 50  # Placeholder
@@ -195,20 +194,19 @@ class AggressiveCryptoSignalGenerator:
                 if col not in df.columns:
                     df[col] = 0
         
-        # Aggressive NaN handling
-        df.replace([np.inf, -np.inf], np.nan, inplace=True)
-        df = df.fillna(method='ffill').fillna(method='bfill').fillna(0)
+        # Aggressive NaN handling with safe cleaning
+        df = clean_numerical_data(df, fill_method='forward')
         
         print(f"✅ Aggressive features calculated. Shape: {df.shape}")
         return df
 
     def _calculate_rsi(self, prices, period=14):
-        """Calculate RSI indicator"""
+        """Calculate RSI indicator with safe division"""
         delta = prices.diff()
         gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
-        rs = gain / loss
-        rsi = 100 - (100 / (1 + rs))
+        rs = safe_div(gain, loss, 1.0)
+        rsi = 100 - safe_div(100, 1 + rs, 50.0)
         return rsi.fillna(50)
 
     def create_aggressive_model(self, input_shape):
@@ -261,6 +259,8 @@ class AggressiveCryptoSignalGenerator:
         except Exception as e:
             print(f"⚠️ Error loading model, creating new one: {e}")
             self.model = self.create_aggressive_model(input_shape)
+        
+        return self.model
 
     def train_aggressive_model(self, X, y, validation_split=0.15):
         """Aggressive training with high learning rate and fast convergence"""
@@ -445,8 +445,8 @@ class AggressiveCryptoSignalGenerator:
         df.loc[aggressive_long, 'Signal'] = 1
         df.loc[aggressive_short, 'Signal'] = -1
         
-        # Aggressive confidence scoring
-        price_diff_pct = abs(df['Prediction'] - df['close']) / df['close']
+        # Aggressive confidence scoring with safe division
+        price_diff_pct = safe_div(abs(df['Prediction'] - df['close']), df['close'], 0.0)
         momentum_factor = abs(df['Momentum_Score'])
         volatility_factor = df['Volatility_Breakout']
         volume_factor = np.clip(df['Volume_Surge'] - 1, 0, 2)
@@ -619,7 +619,7 @@ class AggressiveCryptoSignalGenerator:
         }
     
     def _calculate_trade_levels(self, current_price, atr, signal, confidence):
-        """Calculate stop loss and take profit levels"""
+        """Calculate stop loss and take profit levels with safe division"""
         # More aggressive levels for higher confidence
         stop_multiplier = max(1.0, 2.0 - confidence)  # Tighter stops for high confidence
         profit_multiplier = min(4.0, 2.0 + confidence * 2)  # Bigger targets for high confidence
@@ -633,7 +633,7 @@ class AggressiveCryptoSignalGenerator:
         
         risk_amount = abs(current_price - stop_loss)
         reward_amount = abs(take_profit - current_price)
-        risk_reward_ratio = reward_amount / risk_amount if risk_amount > 0 else 0
+        risk_reward_ratio = safe_risk_reward_ratio(risk_amount, reward_amount, 0.0)
         
         return {
             'stop_loss': round(stop_loss, 2),
